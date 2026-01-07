@@ -1,8 +1,0 @@
-const firebaseConfig = {
-apiKey: "AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
-authDomain: "tokyo-travel-share.firebaseapp.com",
-projectId: "tokyo-travel-share",
-storageBucket: "tokyo-travel-share.firebasestorage.app",
-messagingSenderId: "199301658742",
-appId: "1:199301658742:web:81dec31fd424e73e598757"
-};
