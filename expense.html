@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記帳</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;font-weight:800}
+body{
+  margin:0;
+  background:radial-gradient(#eaeaea 1px,transparent 1px),radial-gradient(#f5f5f5 1px,transparent 1px);
+  background-size:6px 6px;
+  background-position:0 0,3px 3px;
+}
+header{padding:14px;text-align:center;font-size:20px}
+
+/* 篩選 */
+.filter-bar{
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  padding:10px;
+}
+.filter-bar input,.filter-bar select{
+  border:3px solid #000;
+  padding:8px;
+  box-shadow:4px 4px 0 #000;
+}
+
+/* 卡片 */
+.list{padding:16px}
+.card{
+  border:3px solid #000;
+  background:#fff;
+  box-shadow:4px 4px 0 #000;
+  padding:14px;
+  margin-bottom:14px;
+  border-radius:14px;
+}
+.row{display:flex;justify-content:space-between;align-items:center}
+.amount{font-size:18px}
+.delete-btn{
+  margin-top:8px;
+  border:3px solid #000;
+  background:#fff;
+  box-shadow:3px 3px 0 #000;
+}
+
+/* 新增按鈕 */
+.add-btn{
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  width:90%;
+  padding:14px;
+  font-size:18px;
+  border:3px solid #000;
+  background:#ff8c00;
+  color:#fff;
+  box-shadow:5px 5px 0 #000;
+}
+
+/* Modal */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.4);
+  display:none;
+  align-items:center;
+  justify-content:center;
+}
+.modal-content{
+  width:90%;
+  background:#fff;
+  border:3px solid #000;
+  box-shadow:6px 6px 0 #000;
+  padding:16px;
+}
+input,select,textarea{
+  width:100%;
+  padding:10px;
+  border:3px solid #000;
+  margin-bottom:10px;
+  font-size:16px;
+}
+.action{
+  display:flex;
+  gap:10px;
+}
+.action button{
+  flex:1;
+  padding:12px;
+  border:3px solid #000;
+  box-shadow:4px 4px 0 #000;
+}
+
+/* 計算器 */
+.calc-display{
+  border:3px solid #000;
+  padding:10px;
+  font-size:20px;
+  text-align:right;
+  margin-bottom:10px;
+}
+.calc-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.calc-grid button{
+  padding:14px;
+  border:3px solid #000;
+  box-shadow:3px 3px 0 #000;
+  font-size:18px;
+}
+.currency-bar{
+  display:flex;
+  gap:6px;
+  margin-top:8px;
+}
+.close-x{
+  position:absolute;
+  top:10px;
+  right:10px;
+  width:32px;
+  height:32px;
+  border:3px solid #000;
+  background:#fff;
+  box-shadow:3px 3px 0 #000;
+  font-size:18px;
+  line-height:24px;
+  cursor:pointer;
+}
+.modal-content{
+  position:relative; /* 很重要，讓 ✕ 定位正確 */
+}
+
+</style>
+</head>
+
+<body>
+
+<header>💰 記帳</header>
+
+<div class="filter-bar">
+  <input type="date" id="filterDate">
+  <select id="filterCategory">
+    <option value="">全部類別</option>
+    <option>消費</option><option>飲食</option><option>玩樂</option>
+    <option>手信</option><option>超商</option><option>交通</option>
+    <option>停車費</option><option>其他</option>
+  </select>
+</div>
+
+<div class="list" id="list"></div>
+
+<button class="add-btn" onclick="openForm()">＋ 新增記帳</button>
+
+<!-- 資料輸入 -->
+<div class="modal" id="formModal">
+  <div class="modal-content">
+  <button class="close-x" onclick="closeAll()">✕</button>
+    <h3 id="formTitle">新增記帳</h3>
+    <input type="date" id="dateInput">
+    <input type="time" id="timeInput">
+    <input placeholder="項目名稱" id="itemInput">
+    <select id="categoryInput">
+      <option>消費</option><option>飲食</option><option>玩樂</option>
+      <option>手信</option><option>超商</option><option>交通</option>
+      <option>停車費</option><option>其他</option>
+    </select>
+    <textarea placeholder="備註" id="noteInput"></textarea>
+    <button onclick="openCalc()">下一步</button>
+  </div>
+</div>
+
+<!-- 計算器 -->
+<div class="modal" id="calcModal">
+  <div class="modal-content">
+    <div class="calc-display" id="calcDisplay">0</div>
+    <div class="calc-grid">
+      <button onclick="press('7')">7</button><button onclick="press('8')">8</button><button onclick="press('9')">9</button><button onclick="del()">⌫</button>
+      <button onclick="press('4')">4</button><button onclick="press('5')">5</button><button onclick="press('6')">6</button><button onclick="press('.')">.</button>
+      <button onclick="press('1')">1</button><button onclick="press('2')">2</button><button onclick="press('3')">3</button><button onclick="press('0')">0</button>
+    </div>
+    <div class="currency-bar">
+      <button onclick="setCurrency('MOP')">MOP</button>
+      <button onclick="setCurrency('HKD')">HKD</button>
+      <button onclick="setCurrency('TWD')">TWD</button>
+      <button onclick="setCurrency('JPY')">JPY</button>
+      <button onclick="setCurrency('KRW')">KRW</button>
+    </div>
+    <div class="action">
+      <button onclick="save()">儲存</button>
+      <button onclick="closeAll()">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Firebase */
+firebase.initializeApp({
+  apiKey:"AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
+  authDomain:"tokyo-travel-share.firebaseapp.com",
+  projectId:"tokyo-travel-share"
+});
+const db=firebase.firestore();
+
+/* 狀態 */
+let editId=null, calcValue="", currency="";
+
+/* 預設日期時間 */
+const now=new Date();
+dateInput.value=now.toISOString().split("T")[0];
+timeInput.value=now.toTimeString().slice(0,5);
+filterDate.value=dateInput.value;
+
+/* 監聽 */
+filterDate.onchange=load;
+filterCategory.onchange=load;
+load();
+
+function load(){
+  let q=db.collection("accounts").where("date","==",filterDate.value);
+  if(filterCategory.value) q=q.where("category","==",filterCategory.value);
+  q.onSnapshot(s=>{
+    list.innerHTML="";
+    s.forEach(doc=>{
+      const d=doc.data();
+      list.innerHTML+=`
+        <div class="card" onclick="edit('${doc.id}')">
+          <div class="row">
+            <div>
+              <strong>${d.item}</strong><br>
+              <small>${d.category}｜${d.note||""}</small>
+            </div>
+            <div class="amount">${d.currency} ${d.amount}</div>
+          </div>
+          <button class="delete-btn" onclick="event.stopPropagation();delRec('${doc.id}')">刪除</button>
+        </div>`;
+    });
+  });
+}
+
+/* 操作 */
+function openForm(){
+  editId=null;
+  formTitle.innerText="新增記帳";
+  formModal.style.display="flex";
+}
+function openCalc(){formModal.style.display="none";calcModal.style.display="flex"}
+function closeAll(){formModal.style.display="none";calcModal.style.display="none"}
+
+function press(v){calcValue+=v;update()}
+function del(){calcValue=calcValue.slice(0,-1);update()}
+function setCurrency(c){currency=c;update()}
+function update(){calcDisplay.innerText=(currency?currency+" ":"")+ (calcValue||0)}
+
+function save(){
+  const data={
+    date:dateInput.value,
+    time:timeInput.value,
+    item:itemInput.value,
+    category:categoryInput.value,
+    note:noteInput.value,
+    amount:Number(calcValue),
+    currency
+  };
+  editId?db.collection("accounts").doc(editId).update(data):db.collection("accounts").add(data);
+  closeAll();
+}
+
+function edit(id){
+  db.collection("accounts").doc(id).get().then(d=>{
+    const v=d.data();
+    editId=id;
+    formTitle.innerText="編輯記帳";
+    dateInput.value=v.date;
+    timeInput.value=v.time;
+    itemInput.value=v.item;
+    categoryInput.value=v.category;
+    noteInput.value=v.note;
+    calcValue=v.amount.toString();
+    currency=v.currency;
+    update();
+    formModal.style.display="flex";
+  });
+}
+
+function delRec(id){
+  if(confirm("刪除這筆？")) db.collection("accounts").doc(id).delete();
+}
+</script>
+
+</body>
+</html>

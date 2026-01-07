@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行程表 Firebase 同步版</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+* { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; }
+body { margin:0; background: radial-gradient(#eaeaea 1px, transparent 1px), radial-gradient(#f5f5f5 1px, transparent 1px); background-size: 6px 6px; background-position: 0 0, 3px 3px; }
+header { padding: 14px; text-align:center; font-size:20px; }
+
+/* ===== 日期選單置中 ===== */
+.date-bar {
+  display: flex;
+  justify-content: center;  /* 置中對齊 */
+  flex-wrap: wrap;          /* 手機小螢幕換行 */
+  gap: 10px;
+  padding: 10px;
+  overflow-x: auto;
+}
+
+.date-btn { 
+  min-width:90px; 
+  text-align:center; 
+  padding:10px; 
+  border:3px solid #000; 
+  background:#fff; 
+  box-shadow:4px 4px 0 #000; 
+  cursor:pointer; 
+}
+
+.date-btn.active { background:#ff8c00; color:#fff; }
+
+.timeline { padding:16px; }
+
+.event { position:relative; margin-left:22px; margin-bottom:16px; padding:14px; border:3px solid #000; border-radius:14px; background:#fff; box-shadow:4px 4px 0 #000; cursor:pointer; }
+.event::before { content:""; position:absolute; left:-26px; top:18px; width:12px; height:12px; background:#ff8c00; border:3px solid #000; border-radius:50%; }
+
+.time { font-size:15px; }
+.place { font-size:14px; margin-top:4px; }
+.note { font-size:13px; margin-top:6px; color:#444; }
+
+.add-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; padding:14px; font-size:18px; border:3px solid #000; background:#ff8c00; color:#fff; box-shadow:5px 5px 0 #000; }
+
+.modal { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:center; justify-content:center; }
+.modal-content { width:90%; background:#fff; border:3px solid #000; box-shadow:6px 6px 0 #000; padding:16px; }
+.modal-content h3 { margin-top:0; }
+
+input, textarea { width:100%; margin-bottom:10px; padding:10px; border:3px solid #000; font-size:16px; }
+
+.action-row { display:flex; gap:10px; }
+.save-btn { flex:1; padding:12px; border:3px solid #000; background:#000; color:#fff; }
+.delete-btn { flex:1; padding:12px; border:3px solid #000; background:#fff; color:#000; }
+</style>
+</head>
+
+<body>
+
+<header>📅 行程表</header>
+<div class="date-bar" id="dateBar"></div>
+<div class="timeline" id="timeline"></div>
+<button class="add-btn" onclick="openAdd()">＋ 新增行程</button>
+
+<!-- Modal -->
+<div class="modal" id="modal" onclick="closeModal(event)">
+  <div class="modal-content">
+    <h3 id="modalTitle">新增行程</h3>
+    <input id="timeInput" type="time" placeholder="時間">
+    <input id="titleInput" placeholder="行程">
+    <input id="placeInput" placeholder="地點">
+    <textarea id="noteInput" placeholder="備註"></textarea>
+    <div class="action-row">
+      <button class="save-btn" onclick="save()">儲存</button>
+      <button class="delete-btn" onclick="remove()">刪除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Firebase 初始化 ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
+  authDomain: "tokyo-travel-share.firebaseapp.com",
+  projectId: "tokyo-travel-share",
+  storageBucket: "tokyo-travel-share.firebasestorage.app",
+  messagingSenderId: "199301658742",
+  appId: "1:199301658742:web:81dec31fd424e73e598757"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ===== 日期選單 ===== */
+const dates = ["02/15","02/16","02/17","02/18","02/19","02/20","02/21","02/22","02/23"];
+let currentDate = dates[0];
+let editId = null; // Firestore doc ID
+
+const dateBar = document.getElementById("dateBar");
+dates.forEach(d=>{
+  const b = document.createElement("div");
+  b.className="date-btn";
+  b.innerText=d;
+  b.onclick=()=>selectDate(d);
+  dateBar.appendChild(b);
+});
+
+/* ===== Firestore 監聽 ===== */
+let unsubscribe = null;
+selectDate(currentDate);
+
+function selectDate(d){
+  currentDate=d;
+  document.querySelectorAll(".date-btn").forEach(b=>{
+    b.classList.toggle("active", b.innerText===d);
+  });
+  subscribeToEvents(d);
+}
+
+function subscribeToEvents(date){
+  if(unsubscribe) unsubscribe();
+  unsubscribe = db.collection("events")
+    .where("date","==",date)
+    .orderBy("time")
+    .onSnapshot(snapshot=>{
+      const arr=[];
+      snapshot.forEach(doc=>{
+        arr.push({ id: doc.id, ...doc.data() });
+      });
+      render(arr);
+    });
+}
+
+/* ===== Render 行程 ===== */
+function render(eventsArray){
+  const t=document.getElementById("timeline");
+  t.innerHTML="";
+  eventsArray.forEach(e=>{
+    const div=document.createElement("div");
+    div.className="event";
+    div.onclick=()=>openEdit(e.id, e);
+    div.innerHTML=`
+      <div class="time">${e.time}</div>
+      <div>${e.title}</div>
+      <div class="place">📍 ${e.place}</div>
+      <div class="note">${e.note}</div>
+    `;
+    t.appendChild(div);
+  });
+}
+
+/* ===== Modal 操作 ===== */
+const modal = document.getElementById("modal");
+const modalTitle = document.getElementById("modalTitle");
+const timeInput = document.getElementById("timeInput");
+const titleInput = document.getElementById("titleInput");
+const placeInput = document.getElementById("placeInput");
+const noteInput = document.getElementById("noteInput");
+
+function openAdd(){
+  editId=null;
+  modalTitle.innerText="新增行程";
+  timeInput.value=titleInput.value=placeInput.value=noteInput.value="";
+  modal.style.display="flex";
+}
+
+function openEdit(id, data){
+  editId=id;
+  modalTitle.innerText="編輯行程";
+  timeInput.value=data.time;
+  titleInput.value=data.title;
+  placeInput.value=data.place;
+  noteInput.value=data.note;
+  modal.style.display="flex";
+}
+
+function save(){
+  const e = {
+    date: currentDate,
+    time: timeInput.value,
+    title: titleInput.value,
+    place: placeInput.value,
+    note: noteInput.value,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(editId){
+    db.collection("events").doc(editId).set(e);
+  } else {
+    db.collection("events").add(e);
+  }
+  modal.style.display="none";
+}
+
+function remove(){
+  if(editId){
+    db.collection("events").doc(editId).delete();
+    modal.style.display="none";
+  }
+}
+
+function closeModal(ev){
+  if(ev.target.id==="modal") modal.style.display="none";
+}
+</script>
+
+</body>
+</html>
