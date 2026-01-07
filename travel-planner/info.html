@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>旅行資訊 Firebase 同步版</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<style>
+* { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; }
+body { margin:0; background: radial-gradient(#eaeaea 1px, transparent 1px), radial-gradient(#f5f5f5 1px, transparent 1px); background-size: 6px 6px; background-position: 0 0, 3px 3px; }
+header { padding: 14px; text-align:center; font-size:20px; }
+.category-bar { display:flex; justify-content:center; flex-wrap:wrap; gap:10px; padding:10px; overflow-x:auto; }
+.category-btn { min-width:90px; text-align:center; padding:10px; border:3px solid #000; background:#fff; box-shadow:4px 4px 0 #000; cursor:pointer; }
+.category-btn.active { background:#ff8c00; color:#fff; }
+.timeline { padding:16px; }
+.info-card { position:relative; margin-bottom:16px; padding:14px; border:3px solid #000; border-radius:14px; background:#fff; box-shadow:4px 4px 0 #000; cursor:pointer; }
+.info-card .title { font-size:16px; font-weight:900; }
+.info-card .detail { font-size:14px; margin-top:4px; }
+.info-card .note { font-size:13px; margin-top:6px; color:#444; }
+.add-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; padding:14px; font-size:18px; border:3px solid #000; background:#ff8c00; color:#fff; box-shadow:5px 5px 0 #000; cursor:pointer; }
+.modal { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:center; justify-content:center; }
+.modal-content { width:90%; background:#fff; border:3px solid #000; box-shadow:6px 6px 0 #000; padding:16px; position:relative; }
+.modal-content h3 { margin-top:0; text-align:center; }
+.close-modal { position:absolute; top:6px; right:6px; font-size:18px; font-weight:bold; cursor:pointer; }
+input, textarea, select { width:100%; margin-bottom:10px; padding:10px; border:3px solid #000; font-size:16px; }
+.action-row { display:flex; gap:10px; }
+.save-btn { flex:1; padding:12px; border:3px solid #000; background:#000; color:#fff; cursor:pointer; }
+.delete-btn { flex:1; padding:12px; border:3px solid #000; background:#fff; color:#000; cursor:pointer; }
+</style>
+</head>
+
+<body>
+
+<header>📄 旅行資訊</header>
+
+<div class="category-bar" id="categoryBar"></div>
+<div class="timeline" id="timeline"></div>
+<button class="add-btn" onclick="openAdd()">＋ 新增資訊</button>
+
+<!-- Modal -->
+<div class="modal" id="modal" onclick="closeModal(event)">
+  <div class="modal-content">
+    <div class="close-modal" onclick="modal.style.display='none'">✖</div>
+    <h3 id="modalTitle">新增資訊</h3>
+    <input id="titleInput" placeholder="標題">
+    <input id="placeInput" placeholder="地點 / 航班 / 酒店">
+    <input id="dateInput" type="date">
+    <input id="timeInput" type="time">
+    <select id="typeInput">
+      <option value="機票">機票</option>
+      <option value="住宿">住宿</option>
+      <option value="租車">租車</option>
+      <option value="其他">其他</option>
+    </select>
+    <textarea id="noteInput" placeholder="備註 / 其他資訊"></textarea>
+    <div class="action-row">
+      <button class="save-btn" onclick="save()">儲存</button>
+      <button class="delete-btn" onclick="remove()">刪除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Firebase 初始化 ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
+  authDomain: "tokyo-travel-share.firebaseapp.com",
+  projectId: "tokyo-travel-share",
+  storageBucket: "tokyo-travel-share.firebasestorage.app",
+  messagingSenderId: "199301658742",
+  appId: "1:199301658742:web:81dec31fd424e73e598757"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ===== 類別按鈕 ===== */
+const categories = ["機票","住宿","租車","其他"];
+let currentCategory = categories[0];
+let editId = null;
+
+const categoryBar = document.getElementById("categoryBar");
+categories.forEach(c=>{
+  const b=document.createElement("div");
+  b.className="category-btn";
+  b.innerText=c;
+  b.onclick=()=>selectCategory(c);
+  categoryBar.appendChild(b);
+});
+
+/* ===== Firestore 監聽 ===== */
+let unsubscribe = null;
+selectCategory(currentCategory);
+
+function selectCategory(c){
+  currentCategory=c;
+  document.querySelectorAll(".category-btn").forEach(b=>{
+    b.classList.toggle("active", b.innerText===c);
+  });
+  subscribeToInfo(c);
+}
+
+function subscribeToInfo(cat){
+  if(unsubscribe) unsubscribe();
+  unsubscribe = db.collection("travel_info")
+    .where("type","==",cat)
+    .orderBy("date")
+    .onSnapshot(snapshot=>{
+      const arr=[];
+      snapshot.forEach(doc=>{
+        arr.push({ id:doc.id, ...doc.data() });
+      });
+      render(arr);
+    });
+}
+
+/* ===== Render 資訊卡片 ===== */
+function render(infoArray){
+  const t=document.getElementById("timeline");
+  t.innerHTML="";
+  infoArray.forEach(i=>{
+    const div=document.createElement("div");
+    div.className="info-card";
+    div.onclick=()=>openEdit(i.id,i);
+    div.innerHTML=`
+      <div class="title">${i.title}</div>
+      <div class="detail">📍 ${i.place}</div>
+      <div class="detail">📅 ${i.date || ""} ⏰ ${i.time || ""}</div>
+      <div class="note">${i.note}</div>
+      <div class="detail">類別：${i.type}</div>
+    `;
+    t.appendChild(div);
+  });
+}
+
+/* ===== Modal 操作 ===== */
+const modal = document.getElementById("modal");
+const modalTitle = document.getElementById("modalTitle");
+const titleInput = document.getElementById("titleInput");
+const placeInput = document.getElementById("placeInput");
+const dateInput = document.getElementById("dateInput");
+const timeInput = document.getElementById("timeInput");
+const typeInput = document.getElementById("typeInput");
+const noteInput = document.getElementById("noteInput");
+
+function openAdd(){
+  editId=null;
+  modalTitle.innerText="新增資訊";
+  titleInput.value=placeInput.value=dateInput.value=timeInput.value=noteInput.value="";
+  typeInput.value=categories[0];
+  // 預設為今日日期與時間
+  const now=new Date();
+  dateInput.value=now.toISOString().split("T")[0];
+  timeInput.value=now.toTimeString().slice(0,5);
+  modal.style.display="flex";
+}
+
+function openEdit(id,data){
+  editId=id;
+  modalTitle.innerText="編輯資訊";
+  titleInput.value=data.title || "";
+  placeInput.value=data.place || "";
+  dateInput.value=data.date || "";
+  timeInput.value=data.time || "";
+  typeInput.value=data.type || categories[0];
+  noteInput.value=data.note || "";
+  modal.style.display="flex";
+}
+
+function save(){
+  const e={
+    title: titleInput.value,
+    place: placeInput.value,
+    date: dateInput.value,
+    time: timeInput.value,
+    type: typeInput.value,
+    note: noteInput.value,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  if(editId){
+    db.collection("travel_info").doc(editId).set(e);
+  } else {
+    db.collection("travel_info").add(e);
+  }
+  modal.style.display="none";
+}
+
+function remove(){
+  if(editId){
+    db.collection("travel_info").doc(editId).delete();
+    modal.style.display="none";
+  }
+}
+
+function closeModal(ev){
+  if(ev.target.id==="modal") modal.style.display="none";
+}
+</script>
+
+</body>
+</html>
