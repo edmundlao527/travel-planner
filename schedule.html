@@ -16,21 +16,23 @@ header { padding: 14px; text-align:center; font-size:20px; }
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
-  
-  /* 背景圖片 */
-  background-image: url('images/schedulebg.jpeg'); /* 這裡放你的圖片路徑 */
-  background-size: cover;       /* 讓圖片覆蓋整個頁面 */
-  background-position: center;  /* 居中 */
-  background-repeat: no-repeat; /* 不重複 */
-  
-  /* 如果要保留格子樣式，可以加疊加圖層 */
   background:
-    radial-gradient(#eaeaea 1px, transparent 1px),
-    radial-gradient(#f5f5f5 1px, transparent 1px),
-    url('background.jpg');
-  background-size: 6px 6px, 6px 6px, cover;
-  background-position: 0 0, 3px 3px, center;
+    radial-gradient(#f0f0f0 1px, transparent 1px),
+    radial-gradient(#f5f5f5 1px, transparent 1px);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("images/schedulebg.jpeg");
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: cover;
+  opacity: 0.80;          /* 背景透明度，可調 */
+  z-index: -1;
 }
 
 
@@ -88,6 +90,14 @@ body {
   margin-bottom: 40px; /* 卡片間距 */
 }
 
+.event.center {
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%; /* 或你希望的寬度 */
+  text-align: center; /* 卡片內容置中 */
+}
+
+
 .event-type {
   display: inline-block;
   margin-bottom: 6px;
@@ -103,6 +113,9 @@ body {
 .event-type.food { background: #fde68a; }
 .event-type.shopping { background: #fbcfe8; }
 .event-type.spot { background: #bbf7d0; }
+.event-type.transport { background: #a5b4fc; } /* 淡紫 */
+.event-type.plan { background: #fef08a; }   
+
 
 .event-title, .event-place, .event-note {
   white-space: normal;
@@ -120,6 +133,25 @@ body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  width: 52px;
+  height: 52px;
+  background: #ff8c00;
+  border: 3px solid #000;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 3px 3px 0 #000;
+}
+
+.time-dot-inside {
+  position: absolute;
+  left: 32px;          /* 距離卡片左邊 */
+  top: 50%;
+  transform: translateY(-50%);
   width: 48px;
   height: 48px;
   background: #ff8c00;
@@ -131,8 +163,31 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 3px 3px 0 #000;
+  box-shadow: 2px 2px 0 #000;
 }
+
+.event.center {
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%; /* 可調整寬度 */
+  text-align: center;
+}
+
+/* 詳細 Modal 編輯按鈕 */
+.edit-detail-btn {
+  position: absolute;   /* 相對於 modal-content */
+  top: 8px;
+  right: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-weight: 900;
+  border: 2px solid #000;
+  background: #fff;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 #000;
+  z-index: 2;           /* 確保在內容上方 */
+}
+
 
 /* ===== Modal & Form ===== */
 .add-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; padding:14px; font-size:18px; border:3px solid #000; background:#ff8c00; color:#fff; box-shadow:5px 5px 0 #000; }
@@ -170,9 +225,11 @@ input, textarea, select { width:100%; margin-bottom:10px; padding:10px; border:3
     <h3 id="modalTitle">新增行程</h3>
     <select id="typeInput">
       <option value="">選擇類型</option>
-      <option value="hotel">酒店</option>
+	  <option value="plan">行程</option>
+      <option value="transport">交通</option>
       <option value="food">飲食</option>
       <option value="shopping">購物</option>
+	  <option value="hotel">酒店</option>
       <option value="spot">景點</option>
     </select>
     <input id="titleInput" placeholder="行程">
@@ -185,6 +242,21 @@ input, textarea, select { width:100%; margin-bottom:10px; padding:10px; border:3
     </div>
   </div>
 </div>
+
+<div class="modal" id="detailModal" onclick="closeDetailModal(event)">
+  <div class="modal-content">
+    <!-- 編輯按鈕放在 Modal 內容右上角 -->
+    <button class="edit-detail-btn" onclick="editFromDetail(event)">編輯</button>
+    
+    <h3 id="detailTitle"></h3>
+    <p><strong>類型：</strong><span id="detailType"></span></p>
+    <p><strong>時間：</strong><span id="detailTime"></span></p>
+    <p><strong>地點：</strong><span id="detailPlace"></span></p>
+    <p><strong>備註：</strong><span id="detailNote"></span></p>
+  </div>
+</div>
+
+
 
 <script>
 
@@ -241,37 +313,71 @@ function subscribeToEvents(date){
 }
 
 /* ===== Render ===== */
-function render(eventsArray){
+function render(eventsArray) {
   const t = document.getElementById("timeline");
-  t.innerHTML = "";
+  t.innerHTML = ""; // 清空
 
   eventsArray.forEach(e => {
-    const side = e.type === "shopping" || e.type === "spot" ? "left" : "right";
+    let side;
+    if(e.type === "shopping" || e.type === "spot") side = "left";
+    else if(e.type === "itinerary") side = "left";
+    else if(e.type === "transport") side = "center";
+    else side = "right";
 
-    // 建立 wrapper
-    const wrapper = document.createElement("div");
-    wrapper.className = "event-wrapper";
-
-    // 時間圓點
-    const dot = document.createElement("div");
-    dot.className = "time-dot";
-    dot.innerText = e.time;
-
-    // 卡片
     const div = document.createElement("div");
     div.className = `event ${side}`;
-    div.onclick = () => openEdit(e.id, e);
+    // 新行：點擊顯示詳細 Modal
+    div.onclick = () => openDetail(e);
+
+    // 卡片內容只顯示類型和標題
     div.innerHTML = `
       <div class="event-type ${e.type}">${e.type}</div>
       <div class="event-title">${e.title}</div>
-      <div class="event-place">📍 ${e.place}</div>
-      ${e.note ? `<div class="event-note">${e.note}</div>` : ""}
+      ${e.type === "transport" ? `<div class="time-dot-inside">${e.time}</div>` : ``}
     `;
+    t.appendChild(div);
 
-    wrapper.appendChild(dot);
-    wrapper.appendChild(div);
-    t.appendChild(wrapper);
+    // 非交通類型，時間圓點浮在中線
+    if(e.type !== "transport") {
+      const dot = document.createElement("div");
+      dot.className = "time-dot";
+      dot.innerText = e.time;
+      const cardTop = div.offsetTop;
+      const cardHeight = div.offsetHeight;
+      dot.style.top = `${cardTop + cardHeight/2 - 24}px`;
+      t.appendChild(dot);
+    }
   });
+}
+
+const detailModal = document.getElementById("detailModal");
+let currentDetailId = null; // 紀錄目前詳細行程 ID
+
+function openDetail(e){
+  currentDetailId = e.id;
+  document.getElementById("detailTitle").innerText = e.title;
+  document.getElementById("detailType").innerText = e.type;
+  document.getElementById("detailTime").innerText = e.time || "";
+  document.getElementById("detailPlace").innerText = e.place || "";
+  document.getElementById("detailNote").innerText = e.note || "";
+  detailModal.style.display = "flex";
+}
+
+function closeDetailModal(ev){
+  if(ev.target.id === "detailModal") detailModal.style.display = "none";
+}
+
+// 從詳細 Modal 點編輯
+function editFromDetail(ev){
+  ev.stopPropagation();  // 防止點擊按鈕時觸發 Modal 關閉
+  detailModal.style.display = "none";
+  if(currentDetailId){
+    db.collection("events").doc(currentDetailId).get().then(doc=>{
+      if(doc.exists){
+        openEdit(doc.id, doc.data());
+      }
+    });
+  }
 }
 
 
