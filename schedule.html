@@ -20,16 +20,13 @@ body {
 }
 
 body::before {
-  content: "";
-  position: absolute;   /* ← 關鍵 */
+  position: fixed;
   inset: 0;
   background-image: url("images/schedulebg.jpeg");
-  background-repeat: no-repeat;
+  background-size: 100% auto;   /* 不用 cover */
   background-position: center bottom;
-  background-size: cover;
-  opacity: 0.8;
-  z-index: -1;
 }
+
 
 /* 如果想兼容手機某些瀏覽器不支持 fixed，可以加一個 fallback */
 @supports (-webkit-overflow-scrolling: touch) {
@@ -438,6 +435,7 @@ function closeModal(ev){
 
 </body>
 </html>
+
 
 
 
