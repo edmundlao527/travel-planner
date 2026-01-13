@@ -1,22 +1,20 @@
 <!DOCTYPE html>
 <html lang="zh-HK">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>行程表</title>
-
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>旅遊記事本</title>
 
 <style>
-* { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; }
-
-header { padding: 14px; text-align:center; font-size:20px; }
+/* ===== 基本設定 ===== */
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Noto Sans TC", sans-serif;
+}
 
 body {
-  margin: 0;
-  position: relative;
+   margin: 0;
   min-height: 100vh;
   background:
     radial-gradient(#eaeaea 1px, transparent 1px),
@@ -25,432 +23,151 @@ body {
   background-position: 0 0, 3px 3px;
 }
 
-
-body::before {
-content: "";
+.bg-layer {
   position: fixed;
   inset: 0;
   background-image: url("images/schedulebg.jpeg");
-  background-size: 100% auto;
-  background-position: center bottom;
   background-repeat: no-repeat;
-  z-index: -1;     
+  background-position: center bottom;
+  background-size: 100% auto;
+  opacity: 0.8;
+  z-index: -1;
+
+  /* ⭐ 關鍵：避免 GPU 重算 */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 
-/* 如果想兼容手機某些瀏覽器不支持 fixed，可以加一個 fallback */
-@supports (-webkit-overflow-scrolling: touch) {
-  body::before {
-    background-attachment: scroll;
-  }
-}
-
-
-/* ===== 日期選單 ===== */
-.date-bar {
-  display: flex;
-  gap: 10px;
-  padding: 10px;
-  overflow-x: auto;
-  white-space: nowrap;
-  -webkit-overflow-scrolling: touch;
-}
-.date-btn { 
-  min-width:90px; 
-  text-align:center; 
-  padding:10px; 
-  border:3px solid #000; 
-  background:#fff; 
-  box-shadow:4px 4px 0 #000; 
-  cursor:pointer; 
-}
-.date-btn.active { background:#ff8c00; color:#fff; }
-
-/* ===== Timeline & Event Card ===== */
-.timeline {
-  position: relative;
-  padding: 16px 10px 140px; /* 預留下方空間給新增按鈕 */
-}
-.timeline::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 4px;
-  background: #000;
-  transform: translateX(-50%);
-}
-.event {
-  position: relative;
-  width: calc(50% - 30px);
-  margin-bottom: 40px;
+/* ===== 標題 ===== */
+header {
   padding: 16px;
-  border: 3px solid #000;
-  border-radius: 16px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 22px;
+}
+
+/* ===== 六宮格 ===== */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  padding: 16px;
+}
+
+/* ===== 卡片樣式 ===== */
+.card {
   background: #fff;
-  box-shadow: 4px 4px 0 #000;
-  word-break: break-word;
-}
-.event.left { margin-left: 0; margin-right: auto; }
-.event.right { margin-left: auto; margin-right: 0; }
-.event:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 #000; }
-.event-wrapper {
-  position: relative;
-  margin-bottom: 40px; /* 卡片間距 */
-}
-
-.event.center {
-  margin-left: auto;
-  margin-right: auto;
-  width: 50%; /* 或你希望的寬度 */
-  text-align: right; /* 卡片內容置中 */
-}
-
-
-.event-type {
-  display: inline-block;
-  margin-bottom: 6px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 900;
-  border-radius: 999px;
-  border: 2px solid #000;
-  box-shadow: 2px 2px 0 #000;
-  text-transform: capitalize;
-}
-.event-type.hotel { background: #dbeafe; }
-.event-type.food { background: #fde68a; }
-.event-type.shopping { background: #fbcfe8; }
-.event-type.spot { background: #bbf7d0; }
-.event-type.transport { background: #a5b4fc; } /* 淡紫 */
-.event-type.plan { background: #fef08a; }   
-
-
-.event-title, .event-place, .event-note {
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.event-title { font-size: 18px; font-weight: 900; line-height: 1.3; }
-.event-place { font-size: 14px; margin-top: 4px; color:#333; }
-.event-note { font-size: 13px; margin-top: 6px; color:#666; line-height:1.4; }
-
-/* ===== 時間圓點 ===== */
-.time-dot {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 52px;
-  height: 52px;
-  background: #ff8c00;
   border: 3px solid #000;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 900;
+  box-shadow: 6px 6px 0 #000;
+  padding: 16px;
+  min-height: 120px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
+  font-weight: 900;
+  font-size: 18px;
+  cursor: pointer;
+  transition: transform 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-icon {
+  position: absolute;
+  right: 10px;
+  bottom: 15px;
+  width: 60px;
+  height: auto;
+  opacity: 1;
+  pointer-events: none; /* 不影響點擊 */
+}
+
+.card:active {
+  transform: translate(3px, 3px);
   box-shadow: 3px 3px 0 #000;
 }
 
-.time-dot-inside {
-  position: absolute;
-  left: 8px;          /* 距離卡片左邊 */
-  top: 50%;
-  transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
+/* ===== 行程表特別樣式 ===== */
+.card.main {
+  grid-column: span 2;
   background: #ff8c00;
-  border: 3px solid #000;
-  border-radius: 50%;
   color: #fff;
-  font-size: 12px;
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 2px 2px 0 #000;
+  font-size: 22px;
 }
 
+.card.main .card-icon {
+bottom: 0.5px;
+  right: 40px;
+  width: 120px;
+  opacity: 1;
+}
 
-/* 詳細 Modal 編輯按鈕 */
-.edit-detail-btn {
-  position: absolute;   /* 相對於 modal-content */
-  top: 8px;
-  right: 8px;
-  padding: 6px 10px;
+/* ===== 副標 ===== */
+.card span {
   font-size: 14px;
-  font-weight: 900;
-  border: 2px solid #000;
-  background: #fff;
-  cursor: pointer;
-  box-shadow: 2px 2px 0 #000;
-  z-index: 2;           /* 確保在內容上方 */
+  font-weight: 700;
+  margin-top: 6px;
 }
 
 
-/* ===== Modal & Form ===== */
-.add-btn { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); width:90%; padding:14px; font-size:18px; border:3px solid #000; background:#ff8c00; color:#fff; box-shadow:5px 5px 0 #000; }
-.modal { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:none; align-items:center; justify-content:center; }
-.modal-content { width:90%; background:#fff; border:3px solid #000; box-shadow:6px 6px 0 #000; padding:16px; }
-.modal-content h3 { margin-top:0; }
-input, textarea, select { width:100%; margin-bottom:10px; padding:10px; border:3px solid #000; font-size:16px; font-weight:800; background:#fff; }
-.action-row { display:flex; gap:10px; }
-.save-btn { flex:1; padding:12px; border:3px solid #000; background:#000; color:#fff; }
-.delete-btn { flex:1; padding:12px; border:3px solid #000; background:#fff; color:#000; }
 
 </style>
 </head>
+
 <body>
 
-<header>📅 行程表</header>
-<div class="date-bar" id="dateBar"></div>
-<div class="timeline" id="timeline">
-  <div class="event-wrapper">
-    <div class="time-dot">08:00</div>
-    <div class="event right">
-      <div class="event-type hotel">酒店</div>
-      <div class="event-title">早餐</div>
-      <div class="event-place">飯店大廳</div>
-      <div class="event-note">準備行李</div>
-    </div>
-  </div>
-</div>
+<header>✈️ 我的旅遊雜誌</header>
+<div class="bg-layer"></div>
+<div class="grid">
 
-<button class="add-btn" onclick="openAdd()">＋ 新增行程</button>
-
-<!-- Modal -->
-<div class="modal" id="modal" onclick="closeModal(event)">
-  <div class="modal-content">
-    <h3 id="modalTitle">新增行程</h3>
-    <select id="typeInput">
-      <option value="">選擇類型</option>
-	  <option value="plan">行程</option>
-      <option value="transport">交通</option>
-      <option value="food">飲食</option>
-      <option value="shopping">購物</option>
-	  <option value="hotel">酒店</option>
-      <option value="spot">景點</option>
-    </select>
-    <input id="titleInput" placeholder="行程">
-    <input id="timeInput" type="time" placeholder="時間">
-    <input id="placeInput" placeholder="地點">
-    <textarea id="noteInput" placeholder="備註"></textarea>
-    <div class="action-row">
-      <button class="save-btn" onclick="save()">儲存</button>
-      <button class="delete-btn" onclick="remove()">刪除</button>
-    </div>
+  <div class="card main" onclick="go('schedule.html')">
+    行程表
+    <span>每日安排一覽</span>
+	<img class="card-icon" src="images/indexischonclick.png" alt="">
   </div>
-</div>
 
-<div class="modal" id="detailModal" onclick="closeDetailModal(event)">
-  <div class="modal-content">
-    <!-- 編輯按鈕放在 Modal 內容右上角 -->
-    <button class="edit-detail-btn" onclick="editFromDetail(event)">編輯</button>
-    
-    <h3 id="detailTitle"></h3>
-    <p><strong>類型：</strong><span id="detailType"></span></p>
-    <p><strong>時間：</strong><span id="detailTime"></span></p>
-    <p><strong>地點：</strong><span id="detailPlace"></span></p>
-    <p><strong>備註：</strong><span id="detailNote"></span></p>
+  <div class="card" onclick="go('intro.html')">
+    行程介紹
+    <span>景點 / 圖片</span>
+	<img class="card-icon" src="images/indexintroonclick.png" alt="">
   </div>
+
+  <div class="card" onclick="go('expense.html')">
+    記帳
+    <span>消費紀錄</span>
+	<img class="card-icon" src="images/indexcalonclick.png" alt="">
+	
+  </div>
+
+  <div class="card" onclick="go('checklist.html')">
+    清單
+    <span>待辦事項</span>
+	<img class="card-icon" src="images/indexlistonclick.png" alt="">
+  </div>
+
+  <div class="card" onclick="go('info.html')">
+    資訊
+    <span>交通 / 提醒</span>
+	<img class="card-icon" src="images/indexinfoonclick.png" alt="">
+  </div>
+
+  <div class="card">
+    敬請期待
+    <span>Coming Soon</span>
+	<img class="card-icon" src="images/indexcomeonclick.png" alt="">
+  </div>
+
 </div>
 
 
 
 <script>
-
-/* ===== Firebase 初始化 ===== */
-const firebaseConfig = {
-  apiKey: "AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
-  authDomain: "tokyo-travel-share.firebaseapp.com",
-  projectId: "tokyo-travel-share",
-  storageBucket: "tokyo-travel-share.firebasestorage.app",
-  messagingSenderId: "199301658742",
-  appId: "1:199301658742:web:81dec31fd424e73e598757"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-/* ===== 日期選單 ===== */
-const dates = ["02/15","02/16","02/17","02/18","02/19","02/20","02/21","02/22","02/23"];
-let currentDate = dates[0];
-let editId = null;
-
-const dateBar = document.getElementById("dateBar");
-dates.forEach(d=>{
-  const b = document.createElement("div");
-  b.className="date-btn";
-  b.innerText=d;
-  b.onclick=()=>selectDate(d);
-  dateBar.appendChild(b);
-});
-
-/* ===== Firestore 監聽 ===== */
-let unsubscribe = null;
-selectDate(currentDate);
-
-function selectDate(d){
-  currentDate=d;
-  document.querySelectorAll(".date-btn").forEach(b=>{
-    const isActive = b.innerText===d;
-    b.classList.toggle("active", isActive);
-    if(isActive) b.scrollIntoView({behavior:"smooth", inline:"center", block:"nearest"});
-  });
-  subscribeToEvents(d);
-}
-
-function subscribeToEvents(date){
-  if(unsubscribe) unsubscribe();
-  unsubscribe = db.collection("events")
-    .where("date","==",date)
-    .orderBy("time")
-    .onSnapshot(snapshot=>{
-      const arr=[];
-      snapshot.forEach(doc=>arr.push({id:doc.id,...doc.data()}));
-      render(arr);
-    });
-}
-
-/* ===== Render ===== */
-function render(eventsArray) {
-  const t = document.getElementById("timeline");
-  t.innerHTML = ""; // 清空
-
-  eventsArray.forEach(e => {
-    let side;
-    if(e.type === "shopping" || e.type === "spot") side = "left";
-    else if(e.type === "itinerary") side = "left";
-    else if(e.type === "transport") side = "center";
-    else side = "right";
-
-    const div = document.createElement("div");
-    div.className = `event ${side}`;
-    // 新行：點擊顯示詳細 Modal
-    div.onclick = () => openDetail(e);
-
-    // 卡片內容只顯示類型和標題
-    div.innerHTML = `
-      <div class="event-type ${e.type}">${e.type}</div>
-      <div class="event-title">${e.title}</div>
-      ${e.type === "transport" ? `<div class="time-dot-inside">${e.time}</div>` : ``}
-    `;
-    t.appendChild(div);
-
-    // 非交通類型，時間圓點浮在中線
-    if(e.type !== "transport") {
-      const dot = document.createElement("div");
-      dot.className = "time-dot";
-      dot.innerText = e.time;
-      const cardTop = div.offsetTop;
-      const cardHeight = div.offsetHeight;
-      dot.style.top = `${cardTop + cardHeight/2 - 24}px`;
-      t.appendChild(dot);
-    }
-  });
-}
-
-const detailModal = document.getElementById("detailModal");
-let currentDetailId = null; // 紀錄目前詳細行程 ID
-
-function openDetail(e){
-  currentDetailId = e.id;
-  document.getElementById("detailTitle").innerText = e.title;
-  document.getElementById("detailType").innerText = e.type;
-  document.getElementById("detailTime").innerText = e.time || "";
-  document.getElementById("detailPlace").innerText = e.place || "";
-  document.getElementById("detailNote").innerText = e.note || "";
-  detailModal.style.display = "flex";
-}
-
-function closeDetailModal(ev){
-  if(ev.target.id === "detailModal") detailModal.style.display = "none";
-}
-
-// 從詳細 Modal 點編輯
-function editFromDetail(ev){
-  ev.stopPropagation();  // 防止點擊按鈕時觸發 Modal 關閉
-  detailModal.style.display = "none";
-  if(currentDetailId){
-    db.collection("events").doc(currentDetailId).get().then(doc=>{
-      if(doc.exists){
-        openEdit(doc.id, doc.data());
-      }
-    });
-  }
-}
-
-
-/* ===== Modal 操作 ===== */
-const modal = document.getElementById("modal");
-const modalTitle = document.getElementById("modalTitle");
-const timeInput = document.getElementById("timeInput");
-const titleInput = document.getElementById("titleInput");
-const placeInput = document.getElementById("placeInput");
-const noteInput = document.getElementById("noteInput");
-const typeInput = document.getElementById("typeInput");
-
-function openAdd(){
-  editId=null;
-  modalTitle.innerText="新增行程";
-  timeInput.value=titleInput.value=placeInput.value=noteInput.value="";
-  typeInput.value="";
-  modal.style.display="flex";
-}
-
-function openEdit(id,data){
-  editId=id;
-  modalTitle.innerText="編輯行程";
-  timeInput.value = data.time || "";
-  titleInput.value = data.title || "";
-  placeInput.value = data.place || "";
-  noteInput.value = data.note || "";
-  typeInput.value = data.type || "";
-  modal.style.display="flex";
-}
-
-function save(){
-  const e = {
-    date: currentDate,
-    time: timeInput.value,
-    title: titleInput.value,
-    place: placeInput.value,
-    note: noteInput.value,
-    type: typeInput.value,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-  if(editId){
-    db.collection("events").doc(editId).set(e);
-  } else {
-    db.collection("events").add(e);
-  }
-  modal.style.display="none";
-}
-
-function remove(){
-  if(editId){
-    db.collection("events").doc(editId).delete();
-    modal.style.display="none";
-  }
-}
-
-function closeModal(ev){
-  if(ev.target.id==="modal") modal.style.display="none";
+function go(page) {
+  window.location.href = page;
 }
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
 
