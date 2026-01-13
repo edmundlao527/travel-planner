@@ -14,30 +14,25 @@
 }
 
 body {
-   margin: 0;
-  min-height: 100vh;
+  margin: 0;
   background:
-    radial-gradient(#eaeaea 1px, transparent 1px),
+    radial-gradient(#f0f0f0 1px, transparent 1px),
     radial-gradient(#f5f5f5 1px, transparent 1px);
   background-size: 6px 6px;
   background-position: 0 0, 3px 3px;
 }
 
-.bg-layer {
+body::before {
+  content: "";
   position: fixed;
   inset: 0;
-  background-image: url("images/schedulebg.jpeg");
+  background-image: url("images/indexbg.png");
   background-repeat: no-repeat;
   background-position: center bottom;
-  background-size: 100% auto;
-  opacity: 0.8;
+  background-size: cover;
+  opacity: 0.80;          /* 背景透明度，可調 */
   z-index: -1;
-
-  /* ⭐ 關鍵：避免 GPU 重算 */
-  transform: translateZ(0);
-  will-change: transform;
 }
-
 
 /* ===== 標題 ===== */
 header {
@@ -118,7 +113,7 @@ bottom: 0.5px;
 <body>
 
 <header>✈️ 我的旅遊雜誌</header>
-<div class="bg-layer"></div>
+
 <div class="grid">
 
   <div class="card main" onclick="go('schedule.html')">
