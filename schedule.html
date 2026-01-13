@@ -15,32 +15,32 @@
 header { padding: 14px; text-align:center; font-size:20px; }
 
 body {
-  margin: 0;
+  position: relative;
   min-height: 100vh;
-  background:
-    radial-gradient(#eaeaea 1px, transparent 1px),
-    radial-gradient(#f5f5f5 1px, transparent 1px);
-  background-size: 6px 6px;
-  background-position: 0 0, 3px 3px;
 }
 
 
-.bg-layer {
-  position: fixed;
+
+body::before {
+  content: "";
+  position: absolute;   /* ← 關鍵 */
   inset: 0;
   background-image: url("images/schedulebg.jpeg");
   background-repeat: no-repeat;
   background-position: center bottom;
-  background-size: 100% auto;
+  background-size: cover;
   opacity: 0.8;
   z-index: -1;
-
-  /* ⭐ 關鍵：避免 GPU 重算 */
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 
+
+/* 如果想兼容手機某些瀏覽器不支持 fixed，可以加一個 fallback */
+@supports (-webkit-overflow-scrolling: touch) {
+  body::before {
+    background-attachment: scroll;
+  }
+}
 
 
 /* ===== 日期選單 ===== */
@@ -205,7 +205,7 @@ input, textarea, select { width:100%; margin-bottom:10px; padding:10px; border:3
 <body>
 
 <header>📅 行程表</header>
-<div class="bg-layer"></div>
+
 <div class="date-bar" id="dateBar"></div>
 <div class="timeline" id="timeline">
   <div class="event-wrapper">
