@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-/* ===== 延用背景修復方法與核心樣式 ===== */
+/* ===== 核心樣式 ===== */
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
 .main-container { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 120px; position: relative; z-index: 1; }
@@ -17,13 +17,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; }
 
 header { padding: 16px; text-align: center; font-size: 20px; border-bottom: 3px solid #000; background: rgba(255,255,255,0.95); backdrop-filter: blur(5px); }
 
-/* 分類篩選 */
 .filter-scroll { display: flex; overflow-x: auto; gap: 10px; padding: 15px; background: rgba(255,255,255,0.7); border-bottom: 3px solid #000; scrollbar-width: none; }
 .filter-scroll::-webkit-scrollbar { display: none; }
 .filter-btn { flex-shrink: 0; padding: 8px 16px; border: 3px solid #000; background: #fff; box-shadow: 3px 3px 0 #000; font-size: 14px; }
 .filter-btn.active { background: #ff8c00; color: #fff; }
 
-/* ===== 資訊票券設計 ===== */
 .info-list { padding: 20px; }
 .ticket-card { position: relative; background: #fff; border: 3px solid #000; margin-bottom: 25px; display: flex; flex-direction: column; box-shadow: 6px 6px 0 #000; overflow: hidden; }
 .ticket-card::after { content: ''; position: absolute; bottom: -5px; left: 0; width: 100%; height: 10px; background-image: radial-gradient(circle, transparent 70%, #000 75%); background-size: 15px 15px; background-position: center bottom; }
@@ -32,36 +30,23 @@ header { padding: 16px; text-align: center; font-size: 20px; border-bottom: 3px 
 
 .ticket-main { padding: 25px 20px 20px 40px; }
 
-/* 佈局容器 */
 .route-container { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; position: relative; }
 .route-point { flex: 1; }
 .route-arrow { flex: 0.4; display: flex; align-items: center; justify-content: center; position: relative; }
 .route-line { width: 100%; border-top: 2px dashed #000; position: absolute; top: 50%; z-index: 1; }
-.route-icon { background: #fff; position: relative; z-index: 2; padding: 0 5px; font-size: 18px; }
+.route-icon-box { background: #fff; position: relative; z-index: 2; padding: 0 5px; font-size: 18px; }
 
 .ticket-divider { border-top: 3px dashed #000; margin: 0 15px; position: relative; }
-.ticket-divider::before, .ticket-divider::after { content: ''; position: absolute; top: -10px; width: 20px; height: 20px; background: #eaeaea; border: 3px solid #000; border-radius: 50%; }
+.ticket-divider::before, .ticket-divider::after { content: ''; position: absolute; top: -10px; width: 20px; height: 20px; background: #eee; border: 3px solid #000; border-radius: 50%; }
 .ticket-divider::before { left: -28px; }
 .ticket-divider::after { right: -28px; }
 
 .ticket-footer { padding: 15px 20px; background: #f9f9f9; display: flex; justify-content: space-between; align-items: center; }
 
-/* 修改背景浮水印樣式 */
 .bg-icon {
-  position: absolute;
-  right: -5px; /* 稍微往右移出邊界一點點更有設計感 */
-  top: -5px;
-  width: 100px; /* 設定圖片顯示大小 */
-  height: 100px;
-  opacity: 0.12; /* 透明度，維持在 0.1 左右才有浮水印的感覺 */
-  transform: rotate(15deg);
-  pointer-events: none;
-  z-index: 0;
-  
-  /* 新增背景圖片設定 */
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  position: absolute; right: -5px; top: -5px; width: 100px; height: 100px;
+  opacity: 0.12; transform: rotate(15deg); pointer-events: none; z-index: 0;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
 }
 
 .info-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -73,10 +58,8 @@ header { padding: 16px; text-align: center; font-size: 20px; border-bottom: 3px 
 .ticket-car { border-left: 12px solid #f59e0b; }
 .ticket-spot { border-left: 12px solid #a855f7; }
 
-/* 懸浮按鈕 */
 .add-fab { position: fixed; bottom: 25px; right: 25px; width: 65px; height: 65px; background: #ff8c00; border: 4px solid #000; border-radius: 50%; box-shadow: 5px 5px 0 #000; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #fff; z-index: 100; }
 
-/* Modal 樣式 */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
 .modal-content { width: 100%; max-width: 380px; background: #fff; border: 4px solid #000; box-shadow: 8px 8px 0 #000; padding: 20px; max-height: 90vh; overflow-y: auto; }
 .input-group { border: 2px solid #eee; padding: 10px; margin-top: 10px; border-radius: 8px; }
@@ -108,8 +91,8 @@ select, input, textarea { width: 100%; border: 3px solid #000; padding: 10px; ma
 
 <div class="modal" id="addModal" onclick="if(event.target==this) closeAddModal()">
   <div class="modal-content">
-    <h3 style="margin-top:0">新增資訊卡</h3>
-    <select id="infoType" onchange="toggleInputs()">
+    <h3 id="modalTitle" style="margin-top:0">新增資訊卡</h3>
+    <input type="hidden" id="editId"> <select id="infoType" onchange="toggleInputs()">
       <option value="flight">✈️ 機票 / 車票</option>
       <option value="hotel">🏨 住宿資訊</option>
       <option value="car">🚗 租車交通</option>
@@ -135,7 +118,7 @@ select, input, textarea { width: 100%; border: 3px solid #000; padding: 10px; ma
     </div>
 
     <textarea id="infoDetail" placeholder="詳細內容 / 確認碼..." rows="2"></textarea>
-    <button class="save-btn" onclick="addInfo()">儲存行程</button>
+    <button class="save-btn" id="saveBtn" onclick="saveInfo()">儲存行程</button>
   </div>
 </div>
 
@@ -145,10 +128,10 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 const typeMap = {
-  flight: { label: 'Ticket',icon: '✈️', img:'images/info/air.png', class: 'ticket-flight', sLabel: 'From', eLabel: 'To' },
-  hotel: { label: 'Stay', icon: '🏨',img:'images/info/hotel.png', class: 'ticket-hotel', sLabel: 'Check-In', eLabel: 'Check-Out' },
-  car: { label: 'Drive',icon: '🚗',img:'images/info/tri.png', class: 'ticket-car', sLabel: 'Pick-Up', eLabel: 'Drop-Off' },
-  spot: { label: 'Entry',icon: '🎟️',img:'images/info/ticket.png', class: 'ticket-spot', sLabel: 'Date/Time', eLabel: '' }
+  flight: { label: 'Ticket', img:'images/info/air.png', class: 'ticket-flight', sLabel: 'From', eLabel: 'To', icon: '✈️' },
+  hotel: { label: 'Stay', img:'images/info/hotel.png', class: 'ticket-hotel', sLabel: 'Check-In', eLabel: 'Check-Out', icon: '🏨' },
+  car: { label: 'Drive',img:'images/info/tri.png', class: 'ticket-car', sLabel: 'Pick-Up', eLabel: 'Drop-Off', icon: '🚗' },
+  spot: { label: 'Entry',img:'images/info/ticket.png', class: 'ticket-spot', sLabel: 'Date/Time', eLabel: '', icon: '🎟️' }
 };
 
 let currentFilter = 'all';
@@ -157,18 +140,9 @@ let allData = [];
 function toggleInputs() {
   const type = document.getElementById('infoType').value;
   const config = typeMap[type];
-  
-  // 設置標籤文字
   document.getElementById('label1').innerText = config.sLabel;
   document.getElementById('label2').innerText = config.eLabel;
-  
-  // 判斷是否顯示第二段
-  const endSection = document.getElementById('endSection');
-  if (type === 'spot') {
-    endSection.style.display = 'none';
-  } else {
-    endSection.style.display = 'block';
-  }
+  document.getElementById('endSection').style.display = (type === 'spot') ? 'none' : 'block';
 }
 
 function setFilter(type, el) {
@@ -195,24 +169,22 @@ function renderData() {
     const isFlight = d.type === 'flight';
 
     listEl.innerHTML += `
-      <div class="ticket-card ${config.class}">
+      <div class="ticket-card ${config.class}" onclick="editInfo('${d.id}')">
         <div class="type-ribbon">${config.label}</div>
         <div class="bg-icon" style="background-image: url('${config.img}')"></div>
         <div class="ticket-main">
           <div class="info-label">Title / Reference</div>
           <div class="info-value">${d.title}</div>
-          
           <div class="route-container">
             <div class="route-point">
               <div class="info-label">${config.sLabel}</div>
               <div class="info-value" style="font-size:15px;">${d.startLoc || '-'}</div>
               <div class="time-value">${d.startTime || ''}</div>
             </div>
-            
             ${!isSingle ? `
             <div class="route-arrow">
               ${isFlight ? `<div class="route-line"></div>` : ''}
-              <div class="route-icon">${isFlight ? config.icon : '❯'}</div>
+              <div class="route-icon-box">${isFlight ? config.icon : '❯'}</div>
             </div>
             <div class="route-point" style="text-align:right;">
               <div class="info-label">${config.eLabel}</div>
@@ -228,16 +200,43 @@ function renderData() {
             <div class="info-label">Notes / Details</div>
             <div style="font-size: 13px;">${d.detail || ''}</div>
           </div>
-          <button style="background:none; border:none; color:red; font-size:12px;" onclick="deleteInfo('${d.id}')">刪除</button>
+          <button style="background:none; border:none; color:red; font-size:12px; position:relative; z-index:10;" onclick="event.stopPropagation(); deleteInfo('${d.id}')">刪除</button>
         </div>
       </div>`;
   });
 }
 
-function openAddModal() { document.getElementById('addModal').style.display = 'flex'; toggleInputs(); }
+function openAddModal() {
+  document.getElementById('modalTitle').innerText = "新增資訊卡";
+  document.getElementById('editId').value = "";
+  clearInputs();
+  document.getElementById('addModal').style.display = 'flex';
+  toggleInputs();
+}
+
 function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
 
-function addInfo() {
+// 編輯功能
+function editInfo(id) {
+  const item = allData.find(d => d.id === id);
+  if(!item) return;
+
+  document.getElementById('modalTitle').innerText = "編輯資訊卡";
+  document.getElementById('editId').value = id;
+  document.getElementById('infoType').value = item.type;
+  document.getElementById('infoTitle').value = item.title;
+  document.getElementById('startLoc').value = item.startLoc;
+  document.getElementById('startTime').value = item.startTime;
+  document.getElementById('endLoc').value = item.endLoc;
+  document.getElementById('endTime').value = item.endTime;
+  document.getElementById('infoDetail').value = item.detail;
+
+  document.getElementById('addModal').style.display = 'flex';
+  toggleInputs();
+}
+
+function saveInfo() {
+  const id = document.getElementById('editId').value;
   const data = {
     type: document.getElementById('infoType').value,
     title: document.getElementById('infoTitle').value,
@@ -246,10 +245,19 @@ function addInfo() {
     endLoc: document.getElementById('endLoc').value,
     endTime: document.getElementById('endTime').value,
     detail: document.getElementById('infoDetail').value,
-    createdAt: Date.now()
+    updatedAt: Date.now()
   };
+
   if(!data.title) return alert("請輸入標題");
-  db.collection("travel_info").add(data).then(() => { closeAddModal(); clearInputs(); });
+
+  if(id) {
+    // 更新舊資料
+    db.collection("travel_info").doc(id).update(data).then(() => closeAddModal());
+  } else {
+    // 新增資料
+    data.createdAt = Date.now();
+    db.collection("travel_info").add(data).then(() => closeAddModal());
+  }
 }
 
 function clearInputs() {
@@ -263,6 +271,3 @@ window.addEventListener('resize', fixHeight);
 </script>
 </body>
 </html>
-
-
-
