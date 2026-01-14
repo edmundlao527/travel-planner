@@ -12,22 +12,17 @@
 /* 修正背景跳動：徹底固定層 */
 .bg-fixed {
   position: fixed;
-  /* 使用負值延伸邊界，預留空間給工具列伸縮 */
-  top: -5%;
-  left: -5%;
-  width: 110%;
-  height: 110%;
-  
-  background-image: url('images/intro/introbg.jpeg');
+  top: 0;
+  left: 0;
+  width: 100vw; /* 使用螢幕寬度 */
+  height: 100vh; /* 預設值，隨後會被 JS 覆蓋 */
+  background-image: linear-gradient(rgba(245, 245, 245, 0.8), rgba(245, 245, 245, 0.8)), 
+                    url('images/intro/introbg.jpeg');
   background-size: cover;
   background-position: center;
-  
-  /* 關鍵：強制硬體加速，防止移動端渲染閃爍 */
-  transform: translate3d(0, 0, 0);
-  -webkit-transform: translate3d(0, 0, 0);
-  
   z-index: -1;
-  pointer-events: none; /* 確保不影響點擊 */
+  /* 取消所有 transform 避免干擾固定定位 */
+  pointer-events: none;
 }
 
 body {
@@ -38,7 +33,7 @@ body {
 }
 
 
-header { padding: 16px; text-align: center; font-size: 22px; font-weight: 900; border-bottom: 3px solid #000; background: #fff; }
+header { position: relative;padding: 16px; text-align: center; font-size: 22px; font-weight: 900; border-bottom: 3px solid #000; background: #fff;z-index: 102; /* 最高層 */ }
 
 .filter-bar {
   display: flex;
@@ -68,7 +63,7 @@ header { padding: 16px; text-align: center; font-size: 22px; font-weight: 900; b
 
 #regionBar {
   position: sticky;
-  top: 53px; /* 這裡的數值要根據你第一排的高度調整，確保兩排貼合 */
+  top: 55px; /* 這裡的數值要根據你第一排的高度調整，確保兩排貼合 */
   border-top: none;
   background: rgba(255,255,255,0.8);
   z-index: 100;
@@ -431,7 +426,28 @@ function updateActiveButtons(selector, value) {
   });
 }
 
+/* ===== 修正行動裝置背景跳動功能 ===== */
+function fixBackgroundHeight() {
+  const bg = document.querySelector('.bg-fixed');
+  if (bg) {
+    // 使用 innerHeight 取得當前視窗高度，並直接轉為 px 固定住
+    // 這樣網址列收起時，bg 的高度就不會跟著變
+    bg.style.height = window.innerHeight + 'px';
+  }
+}
 
+// 頁面載入時執行一次
+window.addEventListener('load', fixBackgroundHeight);
+
+// 當螢幕旋轉時重新計算（例如從直向變橫向）
+window.addEventListener('resize', () => {
+  // 只有當寬度改變時才重新計算（避免手機網址列伸縮觸發 resize）
+  let lastWidth = window.innerWidth;
+  if (window.innerWidth !== lastWidth) {
+    fixBackgroundHeight();
+    lastWidth = window.innerWidth;
+  }
+});
 
 /* ===== 編輯與儲存 ===== */
 function editFromDetail() {
@@ -487,4 +503,5 @@ function deleteIntro() {
 </script>
 </body>
 </html>
+
 
