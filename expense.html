@@ -2,301 +2,383 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>記帳</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>記帳 - 旅遊助手</title>
 
-<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;font-weight:800}
-body{
-  margin:0;
-  background:radial-gradient(#eaeaea 1px,transparent 1px),radial-gradient(#f5f5f5 1px,transparent 1px);
-  background-size:6px 6px;
-  background-position:0 0,3px 3px;
-}
-header{padding:14px;text-align:center;font-size:20px}
+/* ===== 全域與背景控制 ===== */
+* { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; -webkit-tap-highlight-color: transparent; }
 
-/* 篩選 */
-.filter-bar{
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  padding:10px;
-}
-.filter-bar input,.filter-bar select{
-  border:3px solid #000;
-  padding:8px;
-  box-shadow:4px 4px 0 #000;
+body {
+  margin: 0;
+  padding-bottom: 120px;
+  min-height: 100vh;
 }
 
-/* 卡片 */
-.list{padding:16px}
-.card{
-  border:3px solid #000;
-  background:#fff;
-  box-shadow:4px 4px 0 #000;
-  padding:14px;
-  margin-bottom:14px;
-  border-radius:14px;
-}
-.row{display:flex;justify-content:space-between;align-items:center}
-.amount{font-size:18px}
-.delete-btn{
-  margin-top:8px;
-  border:3px solid #000;
-  background:#fff;
-  box-shadow:3px 3px 0 #000;
+/* 獨立背景層：防止手機網址列縮放導致的閃爍 */
+.bg-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  /* 替換下方網址為你的背景圖 */
+  background-image: url('images/expense/expensebg.jpeg');
+  background-size: cover;
+  background-position: center;
+  z-index: -1;
+  pointer-events: none;
 }
 
-/* 新增按鈕 */
-.add-btn{
-  position:fixed;
-  bottom:20px;
-  left:50%;
-  transform:translateX(-50%);
-  width:90%;
-  padding:14px;
-  font-size:18px;
-  border:3px solid #000;
-  background:#ff8c00;
-  color:#fff;
-  box-shadow:5px 5px 0 #000;
+header { padding: 16px; text-align: center; font-size: 22px; border-bottom: 3px solid #000; background: rgba(255,255,255,0.95); backdrop-filter: blur(5px); position: sticky; top: 0; z-index: 100; }
+
+/* 統計區域 */
+.summary-area {
+  background: rgba(255,255,255,0.9);
+  border-bottom: 3px solid #000;
+  backdrop-filter: blur(5px);
+}
+.summary-item {
+  padding: 12px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #000;
+}
+.summary-item:last-child { border-bottom: none; }
+.summary-item.today { background: rgba(187, 247, 208, 0.8); } 
+.summary-item.total { background: rgba(191, 219, 254, 0.8); } 
+.summary-label { font-size: 14px; }
+.summary-value { font-size: 20px; }
+
+/* 篩選列 */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  padding: 15px;
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(5px);
+  border-bottom: 3px solid #000;
+}
+.filter-bar input, .filter-bar select {
+  flex: 1; border: 3px solid #000; padding: 10px; box-shadow: 4px 4px 0 #000; background: #fff; font-size: 14px;
 }
 
-/* Modal */
-.modal{
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.4);
-  display:none;
-  align-items:center;
-  justify-content:center;
+/* ===== 時間軸與卡片排版 (核心修改) ===== */
+.list {
+  padding: 20px 15px 20px 80px; /* 左邊留大空位給圓點 */
+  position: relative;
 }
-.modal-content{
-  width:90%;
-  background:#fff;
-  border:3px solid #000;
-  box-shadow:6px 6px 0 #000;
-  padding:16px;
+
+.list::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; left: 38px; /* 線條居中於圓點 */
+  width: 4px;
+  background: #000;
+  z-index: 0;
 }
-input,select,textarea{
-  width:100%;
-  padding:10px;
-  border:3px solid #000;
-  margin-bottom:10px;
-  font-size:16px;
+
+.card {
+  border: 3px solid #000;
+  background: #fff;
+  box-shadow: 4px 4px 0 #000;
+  padding: 12px 15px;
+  margin-bottom: 25px;
+  border-radius: 12px;
+  position: relative;
+  z-index: 1;
 }
-.action{
-  display:flex;
-  gap:10px;
+
+/* 巨大圓點時間節點 */
+.time-node {
+  position: absolute;
+  left: -72px; /* 調整至線條中心 */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 58px;
+  height: 58px;
+  background: #ff8c00;
+  color: #000;
+  border: 3px solid #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 900;
+  z-index: 5;
+  box-shadow: 3px 3px 0 #000;
 }
-.action button{
-  flex:1;
-  padding:12px;
-  border:3px solid #000;
-  box-shadow:4px 4px 0 #000;
+
+.card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
 }
+
+.category-tag {
+  display: inline-block; padding: 2px 8px; border: 2px solid #000; border-radius: 99px;
+  font-size: 11px; margin-top: 4px; background: #fde68a;
+}
+
+.amount-area { text-align: right; }
+.amount { font-size: 19px; color: #000; }
+
+.delete-btn {
+  background: #fff; color: #ff4444; border: 2px solid #000;
+  padding: 3px 8px; font-size: 11px; margin-top: 8px; box-shadow: 2px 2px 0 #000;
+}
+
+/* ===== 懸浮按鈕 ===== */
+.add-fab {
+  position: fixed; bottom: 25px; right: 25px; width: 65px; height: 65px;
+  background: #ff8c00; border: 4px solid #000; border-radius: 50%;
+  box-shadow: 5px 5px 0 #000; display: flex; align-items: center; justify-content: center;
+  font-size: 32px; color: #fff; z-index: 999;
+}
+.rate-fab {
+  position: fixed; bottom: 25px; left: 25px; width: 55px; height: 55px;
+  background: #fff; border: 3px solid #000; border-radius: 50%;
+  box-shadow: 4px 4px 0 #000; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; z-index: 999;
+}
+
+/* Modal 樣式 */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.modal-content { width: 100%; max-width: 400px; background: #fff; border: 4px solid #000; box-shadow: 8px 8px 0 #000; padding: 24px; position: relative; }
+.close-x { position: absolute; top: -15px; right: -15px; width: 40px; height: 40px; border: 3px solid #000; background: #fff; box-shadow: 4px 4px 0 #000; display: flex; align-items: center; justify-content: center; }
+
+input, select, textarea { width: 100%; border: 3px solid #000; padding: 10px; margin-bottom: 10px; font-size: 16px; font-weight: 800; }
 
 /* 計算器 */
-.calc-display{
-  border:3px solid #000;
-  padding:10px;
-  font-size:20px;
-  text-align:right;
-  margin-bottom:10px;
-}
-.calc-grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:8px;
-}
-.calc-grid button{
-  padding:14px;
-  border:3px solid #000;
-  box-shadow:3px 3px 0 #000;
-  font-size:18px;
-}
-.currency-bar{
-  display:flex;
-  gap:6px;
-  margin-top:8px;
-}
-.close-x{
-  position:absolute;
-  top:10px;
-  right:10px;
-  width:32px;
-  height:32px;
-  border:3px solid #000;
-  background:#fff;
-  box-shadow:3px 3px 0 #000;
-  font-size:18px;
-  line-height:24px;
-  cursor:pointer;
-}
-.modal-content{
-  position:relative; /* 很重要，讓 ✕ 定位正確 */
-}
+.calc-display { border: 3px solid #000; background: #f9f9f9; padding: 15px; font-size: 28px; text-align: right; margin-bottom: 15px; min-height: 65px; }
+.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.calc-grid button { padding: 15px 5px; border: 3px solid #000; background: #fff; box-shadow: 3px 3px 0 #000; font-size: 20px; font-weight: 800; }
+.curr-btn { flex: 1; min-width: 60px; padding: 8px; border: 2px solid #000; background: #fff; font-size: 13px; box-shadow: 2px 2px 0 #000; }
+.curr-btn.active { background: #000; color: #fff; }
+.save-action-btn { width: 100%; padding: 15px; background: #000; color: #fff; border: 3px solid #000; font-size: 18px; margin-top: 10px; font-weight: 800; }
 
+.rate-input-group { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
+.rate-input-group label { width: 50px; }
 </style>
 </head>
 
 <body>
 
-<header>💰 記帳</header>
+<div class="bg-fixed"></div>
+
+<header>💰 旅遊記帳</header>
+
+<div class="summary-area">
+  <div class="summary-item today">
+    <div class="summary-label">今日支出</div>
+    <div class="summary-value" id="todayTotal">HKD 0</div>
+  </div>
+  <div class="summary-item total">
+    <div class="summary-label">行程總累計 (2/15-2/23)</div>
+    <div class="summary-value" id="allTotal">HKD 0</div>
+  </div>
+</div>
 
 <div class="filter-bar">
-  <input type="date" id="filterDate">
+  <input type="date" id="filterDate" min="2025-02-15" max="2025-02-23">
   <select id="filterCategory">
-    <option value="">全部類別</option>
-    <option>消費</option><option>飲食</option><option>玩樂</option>
-    <option>手信</option><option>超商</option><option>交通</option>
+    <option value="">所有類別</option>
+    <option>飲食</option><option>交通</option><option>玩樂</option>
+    <option>購物</option><option>超商</option><option>手信</option>
     <option>停車費</option><option>其他</option>
   </select>
 </div>
 
 <div class="list" id="list"></div>
 
-<button class="add-btn" onclick="openForm()">＋ 新增記帳</button>
+<div class="rate-fab" onclick="openRateModal()">⚙️</div>
+<div class="add-fab" onclick="openForm()">＋</div>
 
-<!-- 資料輸入 -->
-<div class="modal" id="formModal">
+<div class="modal" id="rateModal" onclick="if(event.target==this) closeRateModal()">
   <div class="modal-content">
-  <button class="close-x" onclick="closeAll()">✕</button>
-    <h3 id="formTitle">新增記帳</h3>
-    <input type="date" id="dateInput">
-    <input type="time" id="timeInput">
-    <input placeholder="項目名稱" id="itemInput">
-    <select id="categoryInput">
-      <option>消費</option><option>飲食</option><option>玩樂</option>
-      <option>手信</option><option>超商</option><option>交通</option>
-      <option>停車費</option><option>其他</option>
-    </select>
-    <textarea placeholder="備註" id="noteInput"></textarea>
-    <button onclick="openCalc()">下一步</button>
+    <div class="close-x" onclick="closeRateModal()">✕</div>
+    <h3 style="margin-top:0">匯率設定 (對應 1 HKD)</h3>
+    <div id="rateInputsContainer"></div>
+    <button class="save-action-btn" onclick="saveRates()">儲存匯率</button>
   </div>
 </div>
 
-<!-- 計算器 -->
-<div class="modal" id="calcModal">
+<div class="modal" id="formModal" onclick="if(event.target==this) closeAll()">
   <div class="modal-content">
+    <div class="close-x" onclick="closeAll()">✕</div>
+    <h3 id="formTitle" style="margin-top:0">新增記帳</h3>
+    <div style="display:flex; gap:10px">
+      <input type="date" id="dateInput" min="2025-02-15" max="2025-02-23">
+      <input type="time" id="timeInput">
+    </div>
+    <input placeholder="項目名稱" id="itemInput">
+    <select id="categoryInput">
+      <option>飲食</option><option>交通</option><option>玩樂</option>
+      <option>購物</option><option>超商</option><option>手信</option>
+      <option>停車費</option><option>其他</option>
+    </select>
+    <textarea placeholder="備註內容..." id="noteInput" rows="2"></textarea>
+    <button class="save-action-btn" onclick="openCalc()">下一步：輸入金額</button>
+  </div>
+</div>
+
+<div class="modal" id="calcModal" onclick="if(event.target==this) closeAll()">
+  <div class="modal-content">
+    <div class="close-x" onclick="closeAll()">✕</div>
     <div class="calc-display" id="calcDisplay">0</div>
+    <div class="currency-bar" id="currBar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px;">
+      <button class="curr-btn" onclick="setCurrency('HKD')">HKD</button>
+      <button class="curr-btn" onclick="setCurrency('MOP')">MOP</button>
+      <button class="curr-btn" onclick="setCurrency('JPY')">JPY</button>
+      <button class="curr-btn" onclick="setCurrency('TWD')">TWD</button>
+      <button class="curr-btn" onclick="setCurrency('KRW')">KRW</button>
+    </div>
     <div class="calc-grid">
       <button onclick="press('7')">7</button><button onclick="press('8')">8</button><button onclick="press('9')">9</button><button onclick="del()">⌫</button>
-      <button onclick="press('4')">4</button><button onclick="press('5')">5</button><button onclick="press('6')">6</button><button onclick="press('.')">.</button>
-      <button onclick="press('1')">1</button><button onclick="press('2')">2</button><button onclick="press('3')">3</button><button onclick="press('0')">0</button>
+      <button onclick="press('4')">4</button><button onclick="press('5')">5</button><button onclick="press('6')">6</button><button onclick="clearCalc()">C</button>
+      <button onclick="press('1')">1</button><button onclick="press('2')">2</button><button onclick="press('3')">3</button><button onclick="press('.')">.</button>
+      <button style="grid-column: span 4" onclick="press('0')">0</button>
     </div>
-    <div class="currency-bar">
-      <button onclick="setCurrency('MOP')">MOP</button>
-      <button onclick="setCurrency('HKD')">HKD</button>
-      <button onclick="setCurrency('TWD')">TWD</button>
-      <button onclick="setCurrency('JPY')">JPY</button>
-      <button onclick="setCurrency('KRW')">KRW</button>
-    </div>
-    <div class="action">
-      <button onclick="save()">儲存</button>
-      <button onclick="closeAll()">取消</button>
-    </div>
+    <button class="save-action-btn" style="background:#ff8c00" onclick="save()">確認儲存</button>
   </div>
 </div>
 
 <script>
-/* Firebase */
-firebase.initializeApp({
-  apiKey:"AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
-  authDomain:"tokyo-travel-share.firebaseapp.com",
-  projectId:"tokyo-travel-share"
-});
-const db=firebase.firestore();
+/* Firebase 配置 */
+const firebaseConfig = {
+  apiKey: "AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
+  authDomain: "tokyo-travel-share.firebaseapp.com",
+  projectId: "tokyo-travel-share"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
-/* 狀態 */
-let editId=null, calcValue="", currency="";
+/* 狀態變數 */
+let rates = JSON.parse(localStorage.getItem('travel_rates')) || { "HKD": 1, "MOP": 1, "JPY": 0.052, "TWD": 0.25, "KRW": 0.0058 };
+let editId = null, calcValue = "", currentCurrency = "HKD";
 
-/* 預設日期時間 */
-const now=new Date();
-dateInput.value=now.toISOString().split("T")[0];
-timeInput.value=now.toTimeString().slice(0,5);
-filterDate.value=dateInput.value;
+/* 初始化日期 */
+const todayStr = new Date().toISOString().split("T")[0];
+const defaultDate = (todayStr >= "2025-02-15" && todayStr <= "2025-02-23") ? todayStr : "2025-02-15";
+dateInput.value = defaultDate;
+filterDate.value = defaultDate;
+timeInput.value = new Date().toTimeString().slice(0,5);
 
-/* 監聽 */
-filterDate.onchange=load;
-filterCategory.onchange=load;
-load();
+/* 背景高度修正 (防止行動端跳動) */
+function fixBackground() {
+  document.querySelector('.bg-fixed').style.height = window.innerHeight + 'px';
+}
+window.addEventListener('load', fixBackground);
+window.addEventListener('resize', fixBackground);
 
-function load(){
-  let q=db.collection("accounts").where("date","==",filterDate.value);
-  if(filterCategory.value) q=q.where("category","==",filterCategory.value);
-  q.onSnapshot(s=>{
-    list.innerHTML="";
-    s.forEach(doc=>{
-      const d=doc.data();
-      list.innerHTML+=`
+/* 載入數據 */
+filterDate.onchange = load;
+filterCategory.onchange = load;
+
+function load() {
+  let q = db.collection("accounts").where("date", "==", filterDate.value);
+  if (filterCategory.value) q = q.where("category", "==", filterCategory.value);
+  
+  q.onSnapshot(s => {
+    list.innerHTML = "";
+    let dayTotal = 0;
+    s.forEach(doc => {
+      const d = doc.data();
+      const rate = rates[d.currency] || 1;
+      const subtotal = d.amount * rate;
+      dayTotal += subtotal;
+
+      list.innerHTML += `
         <div class="card" onclick="edit('${doc.id}')">
-          <div class="row">
-            <div>
+          <div class="time-node">${d.time}</div>
+          <div class="card-main">
+            <div style="flex: 1;">
               <strong>${d.item}</strong><br>
-              <small>${d.category}｜${d.note||""}</small>
+              <span class="category-tag">${d.category}</span>
+              ${d.note ? `<div style="font-size: 11px; color: #666; margin-top: 5px; font-weight: 500;">${d.note}</div>` : ''}
             </div>
-            <div class="amount">${d.currency} ${d.amount}</div>
+            <div class="amount-area">
+              <div class="amount">${d.currency} ${d.amount.toLocaleString()}</div>
+              <small style="color: #888; font-size: 11px;">≈ HKD ${subtotal.toFixed(1)}</small>
+            </div>
           </div>
-          <button class="delete-btn" onclick="event.stopPropagation();delRec('${doc.id}')">刪除</button>
+          <div style="text-align: right; border-top: 1px dashed #ccc; margin-top: 10px; padding-top: 5px;">
+            <button class="delete-btn" onclick="event.stopPropagation();delRec('${doc.id}')">刪除</button>
+          </div>
         </div>`;
     });
+    document.getElementById('todayTotal').innerText = `HKD ${dayTotal.toFixed(1)}`;
   });
+
+  // 全行程累計
+  db.collection("accounts").where("date", ">=", "2025-02-15").where("date", "<=", "2025-02-23")
+    .onSnapshot(s => {
+      let total = 0;
+      s.forEach(doc => { total += (doc.data().amount * (rates[doc.data().currency] || 1)); });
+      document.getElementById('allTotal').innerText = `HKD ${total.toFixed(1)}`;
+    });
 }
 
-/* 操作 */
-function openForm(){
-  editId=null;
-  formTitle.innerText="新增記帳";
-  formModal.style.display="flex";
+/* 計算器與操作 */
+function openForm() { editId = null; formTitle.innerText="新增記帳"; itemInput.value=""; noteInput.value=""; calcValue=""; currentCurrency="HKD"; updateCalcUI(); formModal.style.display="flex"; }
+function openCalc() { if(!itemInput.value) return alert("請輸入項目名稱"); formModal.style.display="none"; calcModal.style.display="flex"; }
+function closeAll() { formModal.style.display="none"; calcModal.style.display="none"; }
+
+function press(v) { if(v==='.' && calcValue.includes('.')) return; calcValue+=v; updateCalcUI(); }
+function del() { calcValue = calcValue.slice(0,-1); updateCalcUI(); }
+function clearCalc() { calcValue = ""; updateCalcUI(); }
+function setCurrency(c) { currentCurrency = c; updateCalcUI(); }
+function updateCalcUI() {
+  calcDisplay.innerText = currentCurrency + " " + (calcValue || "0");
+  document.querySelectorAll('.curr-btn').forEach(b => b.classList.toggle('active', b.innerText === currentCurrency));
 }
-function openCalc(){formModal.style.display="none";calcModal.style.display="flex"}
-function closeAll(){formModal.style.display="none";calcModal.style.display="none"}
 
-function press(v){calcValue+=v;update()}
-function del(){calcValue=calcValue.slice(0,-1);update()}
-function setCurrency(c){currency=c;update()}
-function update(){calcDisplay.innerText=(currency?currency+" ":"")+ (calcValue||0)}
-
-function save(){
-  const data={
-    date:dateInput.value,
-    time:timeInput.value,
-    item:itemInput.value,
-    category:categoryInput.value,
-    note:noteInput.value,
-    amount:Number(calcValue),
-    currency
+function save() {
+  if(!calcValue || isNaN(parseFloat(calcValue))) return alert("請輸入金額");
+  const data = {
+    date: dateInput.value, time: timeInput.value, item: itemInput.value,
+    category: categoryInput.value, note: noteInput.value,
+    amount: parseFloat(calcValue), currency: currentCurrency
   };
-  editId?db.collection("accounts").doc(editId).update(data):db.collection("accounts").add(data);
-  closeAll();
+  const p = editId ? db.collection("accounts").doc(editId).update(data) : db.collection("accounts").add(data);
+  p.then(() => closeAll());
 }
 
-function edit(id){
-  db.collection("accounts").doc(id).get().then(d=>{
-    const v=d.data();
-    editId=id;
-    formTitle.innerText="編輯記帳";
-    dateInput.value=v.date;
-    timeInput.value=v.time;
-    itemInput.value=v.item;
-    categoryInput.value=v.category;
-    noteInput.value=v.note;
-    calcValue=v.amount.toString();
-    currency=v.currency;
-    update();
-    formModal.style.display="flex";
+/* 匯率設定 */
+function openRateModal() {
+  const container = document.getElementById('rateInputsContainer');
+  container.innerHTML = "";
+  for (let c in rates) {
+    container.innerHTML += `<div class="rate-input-group"><label>${c}</label><input type="number" step="0.0001" id="r_${c}" value="${rates[c]}" ${c==='HKD'?'disabled':''}></div>`;
+  }
+  document.getElementById('rateModal').style.display='flex';
+}
+function saveRates() {
+  for (let c in rates) if(c!=='HKD') rates[c] = parseFloat(document.getElementById(`r_${c}`).value) || 1;
+  localStorage.setItem('travel_rates', JSON.stringify(rates));
+  document.getElementById('rateModal').style.display='none';
+  load();
+}
+function closeRateModal() { document.getElementById('rateModal').style.display='none'; }
+
+function edit(id) {
+  db.collection("accounts").doc(id).get().then(doc => {
+    const v = doc.data(); editId = id; formTitle.innerText="編輯記帳";
+    dateInput.value=v.date; timeInput.value=v.time; itemInput.value=v.item;
+    categoryInput.value=v.category; noteInput.value=v.note;
+    calcValue=v.amount.toString(); currentCurrency=v.currency;
+    updateCalcUI(); formModal.style.display="flex";
   });
 }
+function delRec(id) { if(confirm("確定要刪除這筆記錄嗎？")) db.collection("accounts").doc(id).delete(); }
 
-function delRec(id){
-  if(confirm("刪除這筆？")) db.collection("accounts").doc(id).delete();
-}
+load();
 </script>
-
 </body>
 </html>
