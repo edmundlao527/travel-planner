@@ -9,49 +9,65 @@
 /* ===== 延續主視覺設定 ===== */
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; }
 
+/* 修正背景跳動：建立獨立背景層 */
+.bg-fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* 填入你的圖片網址，並保留遮罩 */
+  background-image: url('images/intro/introbg.jpeg');
+  background-size: cover;
+  background-position: center;
+  z-index: -1; /* 放在最底層 */
+}
+
 body {
   margin: 0;
-  /* 填入你的圖片網址 */
-  background-image: url('images/intro/introbg.jpeg');
-  background-size: cover;    /* 確保圖片填滿螢幕 */
-  background-position: center; /* 圖片置中 */
-  background-attachment: fixed; /* 捲動時背景固定不動，增加雜誌感 */
+  background: transparent; /* body 設為透明，使用 bg-fixed 的底圖 */
   min-height: 100vh;
   padding-bottom: 50px;
 }
+
+
 header { padding: 16px; text-align: center; font-size: 22px; font-weight: 900; border-bottom: 3px solid #000; background: #fff; }
 
 .filter-bar {
-display: flex;
-  justify-content: center; /* ⭐ 關鍵：水平置中 */
-  flex-wrap: wrap;        /* ⭐ 容許多行顯示，避免按鈕太多時擠出螢幕 */
-  gap: 12px;
-  padding: 15px;
+  display: flex;
+  justify-content: flex-start; /* 手機滑動模式必須靠左對齊 */
+  flex-wrap: nowrap;           /* 強制不換行 */
+  gap: 10px;
+  padding: 12px 15px;
+  overflow-x: auto;            /* 開啟橫向滑動 */
+  -webkit-overflow-scrolling: touch; /* 增加 iOS 滑動流暢度 */
   position: sticky;
   top: 0;
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(5px);
-  z-index: 10;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(10px);
+  z-index: 100;
   border-bottom: 3px solid #000;
 }
 
+.filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+
 #regionBar {
-  border-top: none; 
-  padding-top: 5px; /* 縮小與上一行的間距 */
-  background: rgba(255,255,255,0.6);
+  top: 56px; /* 這裡的數值要根據你第一排的高度調整，確保兩排貼合 */
+  border-top: none;
+  background: rgba(255,255,255,0.8);
 }
 
 .filter-btn {
+  flex-shrink: 0;              /* 確保按鈕不會被擠壓變形 */
+  min-width: fit-content;      /* 寬度依文字縮放 */
   padding: 8px 16px;
-  border: 3px solid #000;
   background: #fff;
+  border: 3px solid #000;
   box-shadow: 3px 3px 0 #000;
-  cursor: pointer;
   font-size: 14px;
-  flex-shrink: 0; 
-  margin: 5px 0; /* 增加上下間距防止多行時重疊 */
-  min-width: 80px;
-  text-align: center;
 }
 .filter-btn.active { background: #ff8c00; color: #fff; }
 
@@ -188,6 +204,7 @@ display: flex;
 </style>
 </head>
 <body>
+<div class="bg-fixed"></div>
 
 <header>🖼️ 行程介紹</header>
 
@@ -342,11 +359,16 @@ db.collection('intros').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
 
 function updateRegionButtons() {
   const regionBar = document.getElementById('regionBar');
-  // 取得所有不重複的地區
   const regions = [...new Set(allData.map(item => item.region).filter(r => r))];
   
-  let html = `<div class="filter-btn ${currentRegion === 'all' ? 'active' : ''}" onclick="filterRegion('all')">所有地區</div>`;
+  if (regions.length === 0) {
+    regionBar.style.display = "none";
+    return;
+  } else {
+    regionBar.style.display = "flex"; // 確保是 flex 才能橫向滑動
+  }
   
+  let html = `<div class="filter-btn ${currentRegion === 'all' ? 'active' : ''}" onclick="filterRegion('all')">所有地區</div>`;
   regions.forEach(r => {
     html += `<div class="filter-btn ${currentRegion === r ? 'active' : ''}" onclick="filterRegion('${r}')">${r}</div>`;
   });
