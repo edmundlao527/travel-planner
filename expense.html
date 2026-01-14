@@ -9,162 +9,93 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
 <style>
-/* ===== 全域與背景控制 ===== */
+/* ===== 核心：防止背景移動的設計 ===== */
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; -webkit-tap-highlight-color: transparent; }
 
-body {
+html, body {
   margin: 0;
+  height: 100%;
+  overflow: hidden; /* 防止最外層捲動 */
+}
+
+.main-container {
+  height: 100%;
+  overflow-y: auto; /* 只在內容區捲動 */
+  -webkit-overflow-scrolling: touch; /* 讓 iOS 捲動更平滑 */
   padding-bottom: 120px;
-  min-height: 100vh;
-}
-
-/* 獨立背景層：防止手機網址列縮放導致的閃爍 */
-.bg-fixed {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  /* 替換下方網址為你的背景圖 */
-  background-image: url('images/expense/expensebg.jpeg');
-  background-size: cover;
-  background-position: center;
-  z-index: -1;
-  pointer-events: none;
-}
-
-header { padding: 16px; text-align: center; font-size: 22px; border-bottom: 3px solid #000; background: rgba(255,255,255,0.95); backdrop-filter: blur(5px); position: sticky; top: 0; z-index: 100; }
-
-/* 統計區域 */
-.summary-area {
-  background: rgba(255,255,255,0.9);
-  border-bottom: 3px solid #000;
-  backdrop-filter: blur(5px);
-}
-.summary-item {
-  padding: 12px 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 2px solid #000;
-}
-.summary-item:last-child { border-bottom: none; }
-.summary-item.today { background: rgba(187, 247, 208, 0.8); } 
-.summary-item.total { background: rgba(191, 219, 254, 0.8); } 
-.summary-label { font-size: 14px; }
-.summary-value { font-size: 20px; }
-
-/* 篩選列 */
-.filter-bar {
-  display: flex;
-  gap: 10px;
-  padding: 15px;
-  background: rgba(255,255,255,0.7);
-  backdrop-filter: blur(5px);
-  border-bottom: 3px solid #000;
-}
-.filter-bar input, .filter-bar select {
-  flex: 1; border: 3px solid #000; padding: 10px; box-shadow: 4px 4px 0 #000; background: #fff; font-size: 14px;
-}
-
-/* ===== 時間軸與卡片排版 (核心修改) ===== */
-.list {
-  padding: 20px 15px 20px 80px; /* 左邊留大空位給圓點 */
-  position: relative;
-}
-
-.list::before {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0; left: 38px; /* 線條居中於圓點 */
-  width: 4px;
-  background: #000;
-  z-index: 0;
-}
-
-.card {
-  border: 3px solid #000;
-  background: #fff;
-  box-shadow: 4px 4px 0 #000;
-  padding: 12px 15px;
-  margin-bottom: 25px;
-  border-radius: 12px;
   position: relative;
   z-index: 1;
 }
 
-/* 巨大圓點時間節點 */
+.bg-fixed {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image: url('images/expense/expensebg.jpeg');
+  background-size: cover;
+  background-position: center;
+  z-index: -1;
+}
+
+/* UI 組件 */
+header { 
+  padding: 16px; text-align: center; font-size: 20px; border-bottom: 3px solid #000; 
+  background: rgba(255,255,255,0.9); backdrop-filter: blur(5px);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.stat-trigger-btn {
+  background: #000; color: #fff; border: 2px solid #000; padding: 5px 12px; font-size: 14px; border-radius: 5px;
+}
+
+.filter-bar {
+  display: flex; gap: 10px; padding: 15px; 
+  background: rgba(255,255,255,0.7); border-bottom: 3px solid #000;
+}
+.filter-bar input, .filter-bar select { flex: 1; border: 3px solid #000; padding: 10px; font-size: 14px; background: #fff; }
+
+/* 時間軸列表 */
+.list { padding: 20px 15px 20px 80px; position: relative; }
+.list::before { content: ''; position: absolute; top: 0; bottom: 0; left: 38px; width: 4px; background: #000; }
+
+.card {
+  border: 3px solid #000; background: #fff; box-shadow: 4px 4px 0 #000;
+  padding: 12px 15px; margin-bottom: 25px; border-radius: 12px; position: relative;
+}
+
 .time-node {
-  position: absolute;
-  left: -72px; /* 調整至線條中心 */
-  top: 50%;
-  transform: translateY(-50%);
-  width: 58px;
-  height: 58px;
-  background: #ff8c00;
-  color: #000;
-  border: 3px solid #000;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 900;
-  z-index: 5;
-  box-shadow: 3px 3px 0 #000;
+  position: absolute; left: -72px; top: 50%; transform: translateY(-50%);
+  width: 55px; height: 55px; background: #ff8c00; border: 3px solid #000; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 2px 2px 0 #000;
 }
 
-.card-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.category-tag {
-  display: inline-block; padding: 2px 8px; border: 2px solid #000; border-radius: 99px;
-  font-size: 11px; margin-top: 4px; background: #fde68a;
-}
-
+.card-main { display: flex; justify-content: space-between; align-items: center; }
+.category-tag { display: inline-block; padding: 2px 8px; border: 2px solid #000; border-radius: 99px; font-size: 11px; background: #fde68a; }
 .amount-area { text-align: right; }
-.amount { font-size: 19px; color: #000; }
+.amount { font-size: 18px; }
 
-.delete-btn {
-  background: #fff; color: #ff4444; border: 2px solid #000;
-  padding: 3px 8px; font-size: 11px; margin-top: 8px; box-shadow: 2px 2px 0 #000;
-}
+/* 懸浮按鈕 */
+.add-fab { position: fixed; bottom: 25px; right: 25px; width: 65px; height: 65px; background: #ff8c00; border: 4px solid #000; border-radius: 50%; box-shadow: 5px 5px 0 #000; display: flex; align-items: center; justify-content: center; font-size: 32px; color: #fff; z-index: 100; }
+.rate-fab { position: fixed; bottom: 25px; left: 25px; width: 50px; height: 50px; background: #fff; border: 3px solid #000; border-radius: 50%; box-shadow: 3px 3px 0 #000; display: flex; align-items: center; justify-content: center; font-size: 20px; z-index: 100; }
 
-/* ===== 懸浮按鈕 ===== */
-.add-fab {
-  position: fixed; bottom: 25px; right: 25px; width: 65px; height: 65px;
-  background: #ff8c00; border: 4px solid #000; border-radius: 50%;
-  box-shadow: 5px 5px 0 #000; display: flex; align-items: center; justify-content: center;
-  font-size: 32px; color: #fff; z-index: 999;
-}
-.rate-fab {
-  position: fixed; bottom: 25px; left: 25px; width: 55px; height: 55px;
-  background: #fff; border: 3px solid #000; border-radius: 50%;
-  box-shadow: 4px 4px 0 #000; display: flex; align-items: center; justify-content: center;
-  font-size: 24px; z-index: 999;
-}
-
-/* Modal 樣式 */
-.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-.modal-content { width: 100%; max-width: 400px; background: #fff; border: 4px solid #000; box-shadow: 8px 8px 0 #000; padding: 24px; position: relative; }
+/* Modal */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.modal-content { width: 100%; max-width: 350px; background: #fff; border: 4px solid #000; box-shadow: 8px 8px 0 #000; padding: 20px; position: relative; }
 .close-x { position: absolute; top: -15px; right: -15px; width: 40px; height: 40px; border: 3px solid #000; background: #fff; box-shadow: 4px 4px 0 #000; display: flex; align-items: center; justify-content: center; }
 
-input, select, textarea { width: 100%; border: 3px solid #000; padding: 10px; margin-bottom: 10px; font-size: 16px; font-weight: 800; }
+/* 統計專用樣式 */
+.stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ccc; font-size: 16px; }
+.stat-total-box { margin-top: 15px; padding: 15px; background: #bbf7d0; border: 3px solid #000; text-align: center; }
+.stat-btn-group { display: flex; gap: 10px; margin-bottom: 15px; }
+.stat-tab { flex: 1; padding: 10px; border: 2px solid #000; background: #eee; text-align: center; cursor: pointer; }
+.stat-tab.active { background: #ff8c00; color: #fff; }
 
-/* 計算器 */
-.calc-display { border: 3px solid #000; background: #f9f9f9; padding: 15px; font-size: 28px; text-align: right; margin-bottom: 15px; min-height: 65px; }
-.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.calc-grid button { padding: 15px 5px; border: 3px solid #000; background: #fff; box-shadow: 3px 3px 0 #000; font-size: 20px; font-weight: 800; }
-.curr-btn { flex: 1; min-width: 60px; padding: 8px; border: 2px solid #000; background: #fff; font-size: 13px; box-shadow: 2px 2px 0 #000; }
-.curr-btn.active { background: #000; color: #fff; }
 .save-action-btn { width: 100%; padding: 15px; background: #000; color: #fff; border: 3px solid #000; font-size: 18px; margin-top: 10px; font-weight: 800; }
-
-.rate-input-group { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; }
-.rate-input-group label { width: 50px; }
+input, select, textarea { width: 100%; border: 3px solid #000; padding: 10px; margin-bottom: 10px; font-size: 16px; font-weight: 800; }
+.calc-display { border: 3px solid #000; background: #f9f9f9; padding: 15px; font-size: 28px; text-align: right; margin-bottom: 15px; min-height: 65px; }
+.calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.calc-grid button { padding: 15px 5px; border: 2px solid #000; background: #fff; font-size: 18px; }
+.curr-btn { flex: 1; min-width: 55px; padding: 8px; border: 2px solid #000; background: #fff; font-size: 12px; }
+.curr-btn.active { background: #000; color: #fff; }
 </style>
 </head>
 
@@ -172,38 +103,44 @@ input, select, textarea { width: 100%; border: 3px solid #000; padding: 10px; ma
 
 <div class="bg-fixed"></div>
 
-<header>💰 旅遊記帳</header>
+<div class="main-container">
+  <header>
+    <span>💰 旅遊記帳</span>
+    <button class="stat-trigger-btn" onclick="openStatModal()">查看支出</button>
+  </header>
 
-<div class="summary-area">
-  <div class="summary-item today">
-    <div class="summary-label">今日支出</div>
-    <div class="summary-value" id="todayTotal">HKD 0</div>
+  <div class="filter-bar">
+    <input type="date" id="filterDate" min="2025-02-15" max="2025-02-23">
+    <select id="filterCategory">
+      <option value="">所有類別</option>
+      <option>飲食</option><option>交通</option><option>玩樂</option>
+      <option>購物</option><option>超商</option><option>手信</option>
+      <option>停車費</option><option>其他</option>
+    </select>
   </div>
-  <div class="summary-item total">
-    <div class="summary-label">行程總累計 (2/15-2/23)</div>
-    <div class="summary-value" id="allTotal">HKD 0</div>
-  </div>
-</div>
 
-<div class="filter-bar">
-  <input type="date" id="filterDate" min="2025-02-15" max="2025-02-23">
-  <select id="filterCategory">
-    <option value="">所有類別</option>
-    <option>飲食</option><option>交通</option><option>玩樂</option>
-    <option>購物</option><option>超商</option><option>手信</option>
-    <option>停車費</option><option>其他</option>
-  </select>
+  <div class="list" id="list"></div>
 </div>
-
-<div class="list" id="list"></div>
 
 <div class="rate-fab" onclick="openRateModal()">⚙️</div>
 <div class="add-fab" onclick="openForm()">＋</div>
 
+<div class="modal" id="statModal" onclick="if(event.target==this) closeStatModal()">
+  <div class="modal-content">
+    <div class="close-x" onclick="closeStatModal()">✕</div>
+    <div class="stat-btn-group">
+      <div class="stat-tab active" id="tabToday" onclick="switchStat('today')">今日</div>
+      <div class="stat-tab" id="tabTotal" onclick="switchStat('total')">行程</div>
+    </div>
+    <div id="statDetail">
+      </div>
+  </div>
+</div>
+
 <div class="modal" id="rateModal" onclick="if(event.target==this) closeRateModal()">
   <div class="modal-content">
     <div class="close-x" onclick="closeRateModal()">✕</div>
-    <h3 style="margin-top:0">匯率設定 (對應 1 HKD)</h3>
+    <h3 style="margin-top:0">匯率設定 (對應 1 MOP)</h3>
     <div id="rateInputsContainer"></div>
     <button class="save-action-btn" onclick="saveRates()">儲存匯率</button>
   </div>
@@ -224,7 +161,7 @@ input, select, textarea { width: 100%; border: 3px solid #000; padding: 10px; ma
       <option>停車費</option><option>其他</option>
     </select>
     <textarea placeholder="備註內容..." id="noteInput" rows="2"></textarea>
-    <button class="save-action-btn" onclick="openCalc()">下一步：輸入金額</button>
+    <button class="save-action-btn" onclick="openCalc()">下一步：金額</button>
   </div>
 </div>
 
@@ -232,7 +169,7 @@ input, select, textarea { width: 100%; border: 3px solid #000; padding: 10px; ma
   <div class="modal-content">
     <div class="close-x" onclick="closeAll()">✕</div>
     <div class="calc-display" id="calcDisplay">0</div>
-    <div class="currency-bar" id="currBar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px;">
+    <div class="currency-bar" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px;">
       <button class="curr-btn" onclick="setCurrency('HKD')">HKD</button>
       <button class="curr-btn" onclick="setCurrency('MOP')">MOP</button>
       <button class="curr-btn" onclick="setCurrency('JPY')">JPY</button>
@@ -245,140 +182,137 @@ input, select, textarea { width: 100%; border: 3px solid #000; padding: 10px; ma
       <button onclick="press('1')">1</button><button onclick="press('2')">2</button><button onclick="press('3')">3</button><button onclick="press('.')">.</button>
       <button style="grid-column: span 4" onclick="press('0')">0</button>
     </div>
-    <button class="save-action-btn" style="background:#ff8c00" onclick="save()">確認儲存</button>
+    <button class="save-action-btn" style="background:#ff8c00" onclick="save()">儲存記錄</button>
   </div>
 </div>
 
 <script>
-/* Firebase 配置 */
-const firebaseConfig = {
-  apiKey: "AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc",
-  authDomain: "tokyo-travel-share.firebaseapp.com",
-  projectId: "tokyo-travel-share"
-};
+/* Firebase 初始化 */
+const firebaseConfig = { apiKey: "AIzaSyASLSZHEKiQfUJU1c0sJ_9eH-6-9-1Rypc", authDomain: "tokyo-travel-share.firebaseapp.com", projectId: "tokyo-travel-share" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-/* 狀態變數 */
-let rates = JSON.parse(localStorage.getItem('travel_rates')) || { "HKD": 1, "MOP": 1, "JPY": 0.052, "TWD": 0.25, "KRW": 0.0058 };
-let editId = null, calcValue = "", currentCurrency = "HKD";
+/* 狀態 */
+// 注意：現在匯率是以 1 MOP 為基準，所以 MOP 為 1
+let rates = JSON.parse(localStorage.getItem('travel_rates')) || { "HKD": 1.03, "MOP": 1, "JPY": 0.052, "TWD": 0.25, "KRW": 0.0058 };
+let editId = null, calcValue = "", currentCurrency = "MOP", currentStatMode = 'today';
+let allRecords = [];
 
-/* 初始化日期 */
 const todayStr = new Date().toISOString().split("T")[0];
 const defaultDate = (todayStr >= "2025-02-15" && todayStr <= "2025-02-23") ? todayStr : "2025-02-15";
-dateInput.value = defaultDate;
-filterDate.value = defaultDate;
+dateInput.value = defaultDate; filterDate.value = defaultDate;
 timeInput.value = new Date().toTimeString().slice(0,5);
 
-/* 背景高度修正 (防止行動端跳動) */
-function fixBackground() {
-  document.querySelector('.bg-fixed').style.height = window.innerHeight + 'px';
-}
-window.addEventListener('load', fixBackground);
-window.addEventListener('resize', fixBackground);
+/* 數據載入：監聽所有相關紀錄 */
+db.collection("accounts").where("date", ">=", "2025-02-15").where("date", "<=", "2025-02-23").onSnapshot(s => {
+  allRecords = [];
+  s.forEach(doc => allRecords.push({ id: doc.id, ...doc.data() }));
+  renderList();
+});
 
-/* 載入數據 */
-filterDate.onchange = load;
-filterCategory.onchange = load;
+filterDate.onchange = renderList;
+filterCategory.onchange = renderList;
 
-function load() {
-  let q = db.collection("accounts").where("date", "==", filterDate.value);
-  if (filterCategory.value) q = q.where("category", "==", filterCategory.value);
+function renderList() {
+  const list = document.getElementById('list');
+  list.innerHTML = "";
+  const filtered = allRecords.filter(r => r.date === filterDate.value && (!filterCategory.value || r.category === filterCategory.value));
   
-  q.onSnapshot(s => {
-    list.innerHTML = "";
-    let dayTotal = 0;
-    s.forEach(doc => {
-      const d = doc.data();
-      const rate = rates[d.currency] || 1;
-      const subtotal = d.amount * rate;
-      dayTotal += subtotal;
+  filtered.sort((a,b) => b.time.localeCompare(a.time)).forEach(d => {
+    const rate = rates[d.currency] || 1;
+    const subtotalMOP = d.amount * rate;
+    list.innerHTML += `
+      <div class="card" onclick="edit('${d.id}')">
+        <div class="time-node">${d.time}</div>
+        <div class="card-main">
+          <div style="flex:1">
+            <strong>${d.item}</strong><br><span class="category-tag">${d.category}</span>
+          </div>
+          <div class="amount-area">
+            <div class="amount">${d.currency} ${d.amount.toLocaleString()}</div>
+            <small style="color:#888">≈ MOP ${subtotalMOP.toFixed(1)}</small>
+          </div>
+        </div>
+        <div style="text-align:right; margin-top:8px; border-top:1px dashed #eee; padding-top:5px">
+          <button class="delete-btn" style="background:none; border:none; color:red; font-size:12px;" onclick="event.stopPropagation();delRec('${d.id}')">刪除</button>
+        </div>
+      </div>`;
+  });
+}
 
-      list.innerHTML += `
-        <div class="card" onclick="edit('${doc.id}')">
-          <div class="time-node">${d.time}</div>
-          <div class="card-main">
-            <div style="flex: 1;">
-              <strong>${d.item}</strong><br>
-              <span class="category-tag">${d.category}</span>
-              ${d.note ? `<div style="font-size: 11px; color: #666; margin-top: 5px; font-weight: 500;">${d.note}</div>` : ''}
-            </div>
-            <div class="amount-area">
-              <div class="amount">${d.currency} ${d.amount.toLocaleString()}</div>
-              <small style="color: #888; font-size: 11px;">≈ HKD ${subtotal.toFixed(1)}</small>
-            </div>
-          </div>
-          <div style="text-align: right; border-top: 1px dashed #ccc; margin-top: 10px; padding-top: 5px;">
-            <button class="delete-btn" onclick="event.stopPropagation();delRec('${doc.id}')">刪除</button>
-          </div>
-        </div>`;
-    });
-    document.getElementById('todayTotal').innerText = `HKD ${dayTotal.toFixed(1)}`;
+/* 統計功能 */
+function openStatModal() {
+  document.getElementById('statModal').style.display = 'flex';
+  switchStat('today');
+}
+
+function switchStat(mode) {
+  currentStatMode = mode;
+  document.getElementById('tabToday').classList.toggle('active', mode === 'today');
+  document.getElementById('tabTotal').classList.toggle('active', mode === 'total');
+  
+  const records = mode === 'today' ? allRecords.filter(r => r.date === filterDate.value) : allRecords;
+  
+  // 分幣種統計
+  const totals = {};
+  let finalMOP = 0;
+  records.forEach(r => {
+    totals[r.currency] = (totals[r.currency] || 0) + r.amount;
+    finalMOP += (r.amount * (rates[r.currency] || 1));
   });
 
-  // 全行程累計
-  db.collection("accounts").where("date", ">=", "2025-02-15").where("date", "<=", "2025-02-23")
-    .onSnapshot(s => {
-      let total = 0;
-      s.forEach(doc => { total += (doc.data().amount * (rates[doc.data().currency] || 1)); });
-      document.getElementById('allTotal').innerText = `HKD ${total.toFixed(1)}`;
-    });
+  let html = `<div style="margin-bottom:10px; color:#666">${mode==='today'?filterDate.value:'2/15 - 2/23'} 支出清單：</div>`;
+  for(let curr in totals) {
+    html += `<div class="stat-row"><span>${curr} 總計</span><span>${totals[curr].toLocaleString()}</span></div>`;
+  }
+  html += `<div class="stat-total-box"><strong>最終結算估計</strong><br><span style="font-size:24px">MOP ${finalMOP.toFixed(1)}</span></div>`;
+  
+  document.getElementById('statDetail').innerHTML = html;
 }
 
-/* 計算器與操作 */
-function openForm() { editId = null; formTitle.innerText="新增記帳"; itemInput.value=""; noteInput.value=""; calcValue=""; currentCurrency="HKD"; updateCalcUI(); formModal.style.display="flex"; }
-function openCalc() { if(!itemInput.value) return alert("請輸入項目名稱"); formModal.style.display="none"; calcModal.style.display="flex"; }
-function closeAll() { formModal.style.display="none"; calcModal.style.display="none"; }
+function closeStatModal() { document.getElementById('statModal').style.display = 'none'; }
 
+/* 基礎功能 (匯率、表單) */
+function openRateModal() {
+  const container = document.getElementById('rateInputsContainer');
+  container.innerHTML = "";
+  for (let c in rates) {
+    container.innerHTML += `<div class="rate-input-group"><label>${c}</label><input type="number" step="0.0001" id="r_${c}" value="${rates[c]}" ${c==='MOP'?'disabled':''}></div>`;
+  }
+  document.getElementById('rateModal').style.display='flex';
+}
+function saveRates() {
+  for (let c in rates) if(c!=='MOP') rates[c] = parseFloat(document.getElementById(`r_${c}`).value) || 1;
+  localStorage.setItem('travel_rates', JSON.stringify(rates));
+  document.getElementById('rateModal').style.display='none';
+  renderList();
+}
+
+function openForm() { editId = null; formTitle.innerText="新增記帳"; itemInput.value=""; calcValue=""; currentCurrency="MOP"; formModal.style.display="flex"; }
+function openCalc() { formModal.style.display="none"; calcModal.style.display="flex"; updateCalcUI(); }
+function closeAll() { formModal.style.display="none"; calcModal.style.display="none"; }
 function press(v) { if(v==='.' && calcValue.includes('.')) return; calcValue+=v; updateCalcUI(); }
 function del() { calcValue = calcValue.slice(0,-1); updateCalcUI(); }
 function clearCalc() { calcValue = ""; updateCalcUI(); }
 function setCurrency(c) { currentCurrency = c; updateCalcUI(); }
 function updateCalcUI() {
-  calcDisplay.innerText = currentCurrency + " " + (calcValue || "0");
+  document.getElementById('calcDisplay').innerText = currentCurrency + " " + (calcValue || "0");
   document.querySelectorAll('.curr-btn').forEach(b => b.classList.toggle('active', b.innerText === currentCurrency));
 }
-
 function save() {
-  if(!calcValue || isNaN(parseFloat(calcValue))) return alert("請輸入金額");
-  const data = {
-    date: dateInput.value, time: timeInput.value, item: itemInput.value,
-    category: categoryInput.value, note: noteInput.value,
-    amount: parseFloat(calcValue), currency: currentCurrency
-  };
+  const data = { date: dateInput.value, time: timeInput.value, item: itemInput.value, category: categoryInput.value, note: noteInput.value, amount: parseFloat(calcValue), currency: currentCurrency };
   const p = editId ? db.collection("accounts").doc(editId).update(data) : db.collection("accounts").add(data);
   p.then(() => closeAll());
 }
-
-/* 匯率設定 */
-function openRateModal() {
-  const container = document.getElementById('rateInputsContainer');
-  container.innerHTML = "";
-  for (let c in rates) {
-    container.innerHTML += `<div class="rate-input-group"><label>${c}</label><input type="number" step="0.0001" id="r_${c}" value="${rates[c]}" ${c==='HKD'?'disabled':''}></div>`;
-  }
-  document.getElementById('rateModal').style.display='flex';
-}
-function saveRates() {
-  for (let c in rates) if(c!=='HKD') rates[c] = parseFloat(document.getElementById(`r_${c}`).value) || 1;
-  localStorage.setItem('travel_rates', JSON.stringify(rates));
-  document.getElementById('rateModal').style.display='none';
-  load();
-}
-function closeRateModal() { document.getElementById('rateModal').style.display='none'; }
-
 function edit(id) {
-  db.collection("accounts").doc(id).get().then(doc => {
-    const v = doc.data(); editId = id; formTitle.innerText="編輯記帳";
-    dateInput.value=v.date; timeInput.value=v.time; itemInput.value=v.item;
-    categoryInput.value=v.category; noteInput.value=v.note;
-    calcValue=v.amount.toString(); currentCurrency=v.currency;
-    updateCalcUI(); formModal.style.display="flex";
-  });
+  const v = allRecords.find(r => r.id === id);
+  editId = id; formTitle.innerText="編輯記帳";
+  dateInput.value=v.date; timeInput.value=v.time; itemInput.value=v.item; categoryInput.value=v.category; noteInput.value=v.note;
+  calcValue=v.amount.toString(); currentCurrency=v.currency;
+  formModal.style.display="flex";
 }
-function delRec(id) { if(confirm("確定要刪除這筆記錄嗎？")) db.collection("accounts").doc(id).delete(); }
-
-load();
+function delRec(id) { if(confirm("確定刪除？")) db.collection("accounts").doc(id).delete(); }
+function closeRateModal() { document.getElementById('rateModal').style.display='none'; }
 </script>
 </body>
 </html>
