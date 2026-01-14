@@ -145,10 +145,10 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 const typeMap = {
-  flight: { label: 'Ticket', img:'images/info/air.png', class: 'ticket-flight', sLabel: 'From', eLabel: 'To' },
-  hotel: { label: 'Stay', img:'images/info/hotel.png', class: 'ticket-hotel', sLabel: 'Check-In', eLabel: 'Check-Out' },
-  car: { label: 'Drive',img:'images/info/tri.png', class: 'ticket-car', sLabel: 'Pick-Up', eLabel: 'Drop-Off' },
-  spot: { label: 'Entry',img:'images/info/ticket.png', class: 'ticket-spot', sLabel: 'Date/Time', eLabel: '' }
+  flight: { label: 'Ticket',icon: '✈️', img:'images/info/air.png', class: 'ticket-flight', sLabel: 'From', eLabel: 'To' },
+  hotel: { label: 'Stay', icon: '🏨',img:'images/info/hotel.png', class: 'ticket-hotel', sLabel: 'Check-In', eLabel: 'Check-Out' },
+  car: { label: 'Drive',icon: '🚗',img:'images/info/tri.png', class: 'ticket-car', sLabel: 'Pick-Up', eLabel: 'Drop-Off' },
+  spot: { label: 'Entry',icon: '🎟️',img:'images/info/ticket.png', class: 'ticket-spot', sLabel: 'Date/Time', eLabel: '' }
 };
 
 let currentFilter = 'all';
@@ -263,5 +263,6 @@ window.addEventListener('resize', fixHeight);
 </script>
 </body>
 </html>
+
 
 
