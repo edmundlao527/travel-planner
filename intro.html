@@ -9,18 +9,26 @@
 /* ===== 延續主視覺設定 ===== */
 * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; }
 
-/* 修正背景跳動：建立獨立背景層 */
+/* 修正背景跳動：徹底固定層 */
 .bg-fixed {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  /* 填入你的圖片網址，並保留遮罩 */
-  background-image: url('images/intro/introbg.jpeg');
+  /* 使用負值延伸邊界，預留空間給工具列伸縮 */
+  top: -5%;
+  left: -5%;
+  width: 110%;
+  height: 110%;
+  
+  background-image: linear-gradient(rgba(245, 245, 245, 0.8), rgba(245, 245, 245, 0.8)), 
+                    url('images/intro/introbg.jpeg');
   background-size: cover;
   background-position: center;
-  z-index: -1; /* 放在最底層 */
+  
+  /* 關鍵：強制硬體加速，防止移動端渲染閃爍 */
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  
+  z-index: -1;
+  pointer-events: none; /* 確保不影響點擊 */
 }
 
 body {
@@ -53,11 +61,18 @@ header { padding: 16px; text-align: center; font-size: 22px; font-weight: 900; b
   display: none;
 }
 
+.filter-bar:first-of-type {
+  position: sticky;
+  top: 0;
+  z-index: 101;
+}
 
 #regionBar {
-  top: 56px; /* 這裡的數值要根據你第一排的高度調整，確保兩排貼合 */
+  position: sticky;
+  top: 140px; /* 這裡的數值要根據你第一排的高度調整，確保兩排貼合 */
   border-top: none;
   background: rgba(255,255,255,0.8);
+  z-index: 100;
 }
 
 .filter-btn {
@@ -70,6 +85,8 @@ header { padding: 16px; text-align: center; font-size: 22px; font-weight: 900; b
   font-size: 14px;
 }
 .filter-btn.active { background: #ff8c00; color: #fff; }
+
+
 
 .intro-grid {
   display: grid;
@@ -209,10 +226,10 @@ header { padding: 16px; text-align: center; font-size: 22px; font-weight: 900; b
 <header>🖼️ 行程介紹</header>
 
 <div class="filter-bar">
-  <div class="filter-btn active" onclick="filter('all')">全部</div>
-  <div class="filter-btn" onclick="filter('spot')">景點</div>
-  <div class="filter-btn" onclick="filter('food')">美食</div>
-  <div class="filter-btn" onclick="filter('shopping')">購物</div>
+  <div class="filter-btn active" onclick="filterType('all')">全部</div>
+  <div class="filter-btn" onclick="filterType('spot')">景點</div>
+  <div class="filter-btn" onclick="filterType('food')">美食</div>
+  <div class="filter-btn" onclick="filterType('shopping')">購物</div>
 </div>
 
 <div class="filter-bar" id="regionBar" style="border-top: none; padding-top: 0; background: rgba(255,255,255,0.6);">
