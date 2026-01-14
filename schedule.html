@@ -261,7 +261,12 @@ input, textarea, select { width:100%; margin-bottom:10px; padding:10px; border:3
     <h3 id="detailTitle"></h3>
     <p><strong>類型：</strong><span id="detailType"></span></p>
     <p><strong>時間：</strong><span id="detailTime"></span></p>
-    <p><strong>地點：</strong><span id="detailPlace"></span></p>
+    <p><strong>地點：</strong>
+       <a id="detailPlaceLink" target="_blank" style="text-decoration: none;">
+          <span id="detailPlace" style="text-decoration: underline; color: #000; cursor: pointer;"></span>
+          <span id="mapIcon" style="margin-left: 5px;">📍</span>
+       </a>
+     </p>
     <p><strong>備註：</strong><span id="detailNote"></span></p>
   </div>
 </div>
@@ -430,8 +435,34 @@ function openDetail(e){
   document.getElementById("detailTitle").innerText = e.title;
   document.getElementById("detailType").innerText = e.type;
   document.getElementById("detailTime").innerText = e.time || "";
-  document.getElementById("detailPlace").innerText = e.place || "";
   document.getElementById("detailNote").innerText = e.note || "";
+  
+  const placeSpan = document.getElementById("detailPlace");
+  const placeLink = document.getElementById("detailPlaceLink");
+  const mapIcon = document.getElementById("mapIcon"); // 取得圖示元件
+  const placeName = (e.place || "").trim();
+
+  if (placeName !== "") {
+    placeSpan.innerText = placeName;
+    // 1. 產生正確的 Google Maps 連結
+    placeLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName)}`;
+    
+    // 2. ⭐ 重要：重置所有顯示狀態，確保隱藏過的元素重新出現
+    placeLink.style.display = "inline"; 
+    placeLink.style.pointerEvents = "auto"; // 重新啟用點擊功能
+    placeSpan.style.textDecoration = "underline"; // 恢復底線樣式
+    if (mapIcon) mapIcon.style.display = "inline"; // 重新顯示圖示
+    
+  } else {
+    placeSpan.innerText = "未設定地點";
+    placeLink.href = "#";
+    
+    // 3. 隱藏與禁用功能
+    placeLink.style.pointerEvents = "none"; // 沒地點時不可點擊
+    placeSpan.style.textDecoration = "none"; // 去掉底線，看起來不像連結
+    if (mapIcon) mapIcon.style.display = "none"; // 隱藏圖示
+  }
+
   detailModal.style.display = "flex";
 }
 
