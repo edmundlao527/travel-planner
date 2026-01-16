@@ -393,7 +393,7 @@ function render(eventsArray) {
 
   eventsArray.forEach(e => {
 let side;
-if (e.type === "plan") {
+if (e.type === "plan"|| e.type === "spot") {
   side = "left";        // ⭐ 只有行程在中線左邊
 } else if (e.type === "transport") {
   side = "center";      // 交通置中
@@ -547,6 +547,7 @@ function closeModal(ev){
 
 </body>
 </html>
+
 
 
 
