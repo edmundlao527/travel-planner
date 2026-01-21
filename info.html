@@ -152,7 +152,7 @@ function setFilter(type, el) {
   renderData();
 }
 
-db.collection("travel_info").orderBy("createdAt", "desc").onSnapshot(s => {
+db.collection("travel_info").orderBy("startTime", "asc").onSnapshot(s => {
   allData = [];
   s.forEach(doc => allData.push({ id: doc.id, ...doc.data() }));
   renderData();
@@ -271,3 +271,4 @@ window.addEventListener('resize', fixHeight);
 </script>
 </body>
 </html>
+
