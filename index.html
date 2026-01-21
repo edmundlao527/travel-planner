@@ -25,16 +25,20 @@ body {
 
 .bg-layer {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh; /* 初始高度 */
   background-image: url("images/indexbg.png");
   background-repeat: no-repeat;
-  background-position: center bottom;
-  background-size: 100% auto;
+  background-position: center; /* 改為置中，視覺最穩定 */
+  background-size: cover;     /* 改為 cover，確保完全填滿不留白 */
   opacity: 0.8;
   z-index: -1;
 
-  /* ⭐ 關鍵：避免 GPU 重算 */
+  /* 強制 GPU 加速，防止手機端閃爍 */
   transform: translateZ(0);
+  -webkit-transform: translateZ(0);
   will-change: transform;
 }
 
@@ -229,6 +233,29 @@ async function getWeatherData(query) {
 }
 
 window.addEventListener('load', fetchMiniWeather);
+
+// 新增：鎖定背景高度，防止手機網址列跳動
+function fixMobileBg() {
+  const bg = document.querySelector('.bg-layer');
+  if (bg) {
+    bg.style.height = window.innerHeight + 'px';
+  }
+}
+
+// 修改原本的 load 事件，把 fixMobileBg 加進去
+window.addEventListener('load', () => {
+  fetchMiniWeather(); // 原有的天氣功能
+  fixMobileBg();      // 新增的背景修正
+});
+
+// 轉向時重新計算
+window.addEventListener('resize', () => {
+  let lastWidth = window.innerWidth;
+  if (window.innerWidth !== lastWidth) {
+    fixMobileBg();
+    lastWidth = window.innerWidth;
+  }
+});
 </script>
 
 </body>
