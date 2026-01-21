@@ -14,25 +14,30 @@
 }
 
 body {
-  margin: 0;
+   margin: 0;
+  min-height: 100vh;
   background:
-    radial-gradient(#f0f0f0 1px, transparent 1px),
+    radial-gradient(#eaeaea 1px, transparent 1px),
     radial-gradient(#f5f5f5 1px, transparent 1px);
   background-size: 6px 6px;
   background-position: 0 0, 3px 3px;
 }
 
-body::before {
-  content: "";
+.bg-layer {
   position: fixed;
   inset: 0;
-  background-image: url("images/indexbg.png");
+  background-image: url("images/schedulebg.jpeg");
   background-repeat: no-repeat;
   background-position: center bottom;
-  background-size: cover;
-  opacity: 0.80;          /* 背景透明度，可調 */
+  background-size: 100% auto;
+  opacity: 0.8;
   z-index: -1;
+
+  /* ⭐ 關鍵：避免 GPU 重算 */
+  transform: translateZ(0);
+  will-change: transform;
 }
+
 
 /* ===== 標題 ===== */
 header {
@@ -113,7 +118,7 @@ bottom: 0.5px;
 <body>
 
 <header>✈️ 我的旅遊雜誌</header>
-
+<div class="bg-layer"></div>
 <div class="grid">
 
   <div class="card main" onclick="go('schedule.html')">
@@ -147,11 +152,15 @@ bottom: 0.5px;
 	<img class="card-icon" src="images/indexinfoonclick.png" alt="">
   </div>
 
-  <div class="card">
-    敬請期待
-    <span>Coming Soon</span>
-	<img class="card-icon" src="images/indexcomeonclick.png" alt="">
+<div class="card" id="weather-card" onclick="go('weather.html')">
+  <div id="idx-city">目的地天氣</div>
+  <div style="display: flex; align-items: baseline; gap: 5px;">
+    <span id="idx-temp" style="font-size: 32px; margin-top: 0;">--</span>
+    <span style="font-size: 18px;">°C</span>
   </div>
+  <span id="idx-cond">讀取中...</span>
+  <img id="idx-weather-icon" class="card-icon" src="images/indexcomeonclick.png" alt="">
+</div>
 
 </div>
 
@@ -161,9 +170,72 @@ bottom: 0.5px;
 function go(page) {
   window.location.href = page;
 }
+
+// --- 天氣自動抓取功能 ---
+const WEATHER_API_KEY = 'fd430aaac39a4dd7b8c62413262101'; 
+const DESTINATION_CITY = 'Tokyo'; // 你的旅遊目的地
+
+async function fetchMiniWeather() {
+  const card = document.getElementById('weather-card');
+  const condEl = document.getElementById('idx-cond');
+
+  // 1. 嘗試取得地理定位
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      // 成功取得位置
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        getWeatherData(`${lat},${lon}`); // 傳送經緯度給 API
+      },
+      // 使用者拒絕或定位失敗，使用預設城市
+      (error) => {
+        console.warn("定位失敗或被拒絕，使用預設城市");
+        getWeatherData(DEFAULT_CITY);
+      }
+    );
+  } else {
+    // 瀏覽器不支援定位
+    getWeatherData(DEFAULT_CITY);
+  }
+}
+
+// 封裝成一個專門抓取資料並更新 UI 的函數
+async function getWeatherData(query) {
+  try {
+    const response = await fetch(`https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${query}&aqi=no`);
+    const data = await response.json();
+
+    if (data.current) {
+      // 更新文字資訊 (會自動顯示當前城市名稱，如 "Hong Kong" 或 "Taipei")
+      document.getElementById('idx-city').innerText = data.location.name;
+      document.getElementById('idx-temp').innerText = Math.round(data.current.temp_c);
+      document.getElementById('idx-cond').innerText = data.current.condition.text;
+      
+      const card = document.getElementById('weather-card');
+      card.onclick = () => go(`weather.html?city=${encodeURIComponent(cityName)}`);
+	  
+	  // 背景顏色邏輯 (沿用之前的設計)
+      const code = data.current.condition.code;
+      const card = document.getElementById('weather-card');
+      let bgColor = "#e0f2fe"; 
+      
+      if (code === 1000) bgColor = "#ffeb3b"; // 晴天
+      else if (code <= 1009) bgColor = "#cfd8dc"; // 多雲
+      else if (code <= 1063 || (code >= 1180 && code <= 1201)) bgColor = "#60a5fa"; // 雨天
+      else if (code >= 1273) bgColor = "#a855f7"; // 雷雨
+      
+      card.style.backgroundColor = bgColor;
+    }
+  } catch (e) {
+    document.getElementById('idx-cond').innerText = '暫時無法取得';
+  }
+}
+
+window.addEventListener('load', fetchMiniWeather);
+
 </script>
 
 </body>
 </html>
-
 
