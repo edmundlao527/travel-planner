@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>目的地天氣 - 旅遊助手</title>
+<style>
+/* 延續你原本的風格核心 */
+* { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; font-weight: 800; }
+body { 
+    margin: 0; 
+    min-height: 100vh; 
+    padding: 20px; 
+    position: relative;
+}
+
+.bg-fixed { 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%; 
+
+    background-image: url('images/weather/weatherbg.jpeg'); 
+    background-size: cover; 
+    background-position: center; 
+    z-index: -1; 
+}
+
+header { 
+    padding: 16px; text-align: center; font-size: 24px; 
+    border: 3px solid #000; background: #fff; 
+    box-shadow: 6px 6px 0 #000; margin-bottom: 30px; 
+}
+
+header, .weather-card, input, .tag-btn {
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(5px);
+}
+
+.search-box {
+    display: flex; gap: 10px; margin-bottom: 25px;
+}
+
+input {
+    flex: 1; border: 3px solid #000; padding: 12px;
+    font-size: 16px; box-shadow: 4px 4px 0 #000;
+}
+
+.search-btn {
+    background: #ff8c00; border: 3px solid #000;
+    padding: 0 20px; box-shadow: 4px 4px 0 #000; cursor: pointer;
+}
+
+/* 天氣卡片設計 */
+.weather-card {
+    background: #fff; border: 3px solid #000;
+    padding: 25px; box-shadow: 8px 8px 0 #000;
+    display: none; /* 初始隱藏 */
+}
+
+.city-name { font-size: 28px; margin-bottom: 5px; text-transform: uppercase; }
+.temp-main { font-size: 54px; color: #ff8c00; margin: 15px 0; }
+.condition { font-size: 20px; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 15px; }
+
+.details-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+}
+
+.detail-item {
+    border: 2px solid #000; padding: 10px; background: #f9f9f9;
+}
+
+.label { font-size: 12px; color: #666; display: block; }
+.value { font-size: 18px; }
+
+.back-btn {
+    margin-top: 30px; display: inline-block;
+    padding: 10px 20px; border: 3px solid #000;
+    background: #fff; text-decoration: none; color: #000;
+    box-shadow: 4px 4px 0 #000;
+}
+
+.quick-select {
+    margin-bottom: 25px;
+}
+
+.tag-container {
+    display: flex;
+    flex-wrap: wrap; /* 自動換行 */
+    gap: 10px;
+}
+
+.tag-btn {
+    background: #fff;
+    border: 3px solid #000;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 #000;
+    transition: all 0.1s;
+}
+
+.tag-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 #000;
+    background: #ff8c00;
+    color: #fff;
+}
+
+</style>
+</head>
+<body>
+<div class="bg-fixed"></div>
+<header>🌍 目的地天氣</header>
+
+<div class="search-box">
+    <input type="text" id="cityInput" placeholder="輸入城市 (例如: Tokyo)">
+    <button class="search-btn" onclick="getWeather()">查詢</button>
+</div>
+
+<div class="quick-select">
+    <div class="info-label" style="margin-bottom: 8px;">快速選擇目的地：</div>
+    <div class="tag-container">
+        <button class="tag-btn" onclick="quickSearch('Macau')">🇲🇴 澳門</button>
+        <button class="tag-btn" onclick="quickSearch('Hong Kong')">🇭🇰 香港</button>
+        <button class="tag-btn" onclick="quickSearch('Taipei')">🇹🇼 台北</button>
+        <button class="tag-btn" onclick="quickSearch('Tokyo')">🇯🇵 東京</button>
+        <button class="tag-btn" onclick="quickSearch('Sendai')">🇯🇵 仙台</button>
+        <button class="tag-btn" onclick="quickSearch('Urayasu')">🎡 迪士尼</button>
+        <button class="tag-btn" onclick="quickSearch('Kaminoyama')">🇯🇵 上山</button>
+        <button class="tag-btn" onclick="quickSearch('Yamagata')">🇯🇵 山形</button>
+        <button class="tag-btn" onclick="quickSearch('Incheon International Airport')">🇰🇷 仁川機場</button>
+    </div>
+</div>
+
+<div class="weather-card" id="weatherCard">
+    <div class="city-name" id="cityName">---</div>
+    <div class="condition" id="conditionText">---</div>
+    <div class="temp-main"><span id="tempValue">0</span>°C</div>
+    
+    <div class="details-grid">
+        <div class="detail-item">
+            <span class="label">體感溫度</span>
+            <span class="value" id="feelsLike">0°C</span>
+        </div>
+        <div class="detail-item">
+            <span class="label">濕度</span>
+            <span class="value" id="humidity">0%</span>
+        </div>
+        <div class="detail-item">
+            <span class="label">風速</span>
+            <span class="value" id="wind">0 km/h</span>
+        </div>
+        <div class="detail-item">
+            <span class="label">紫外線</span>
+            <span class="value" id="uv">0</span>
+        </div>
+    </div>
+</div>
+
+<a href="index.html" class="back-btn">← 返回</a>
+
+<script>
+// 1. 統一管理 API Key
+const API_KEY = "fd430aaac39a4dd7b8c62413262101"; 
+
+// 2. 核心查詢函數 (合併了所有邏輯)
+async function getWeather() {
+    const cityInput = document.getElementById('cityInput');
+    const city = cityInput.value.trim();
+    
+    if (!city) return alert("請輸入城市名稱");
+
+    const url = `https://api.weatherapi.com/v1/current.json?key=${API_KEY}&q=${city}&aqi=no`;
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.error) {
+            alert("找不到該位置，請確認名稱是否正確");
+            return;
+        }
+
+        // --- A. 處理顯示名稱 (優化邏輯) ---
+        let displayName = `${data.location.name}, ${data.location.country}`;
+        
+        // 針對你要求的特定地點進行名稱優化
+        if (city === 'Urayasu') displayName = "🎡 東京迪士尼 (浦安)";
+        else if (city.includes('Incheon')) displayName = "✈️ 仁川國際機場";
+        else if (city === 'Kaminoyama') displayName = "🇯🇵 山形縣上山市";
+        else if (city === 'Macau') displayName = "🇲🇴 澳門";
+        else if (city === 'Hong Kong') displayName = "🇭🇰 香港";
+        else if (city === 'Taipei') displayName = "🇹🇼 台北";
+
+        // --- B. 填充 UI 資料 ---
+        document.getElementById('cityName').innerText = displayName;
+        document.getElementById('conditionText').innerText = data.current.condition.text;
+        document.getElementById('tempValue').innerText = Math.round(data.current.temp_c);
+        document.getElementById('feelsLike').innerText = data.current.feelslike_c + "°C";
+        document.getElementById('humidity').innerText = data.current.humidity + "%";
+        document.getElementById('wind').innerText = data.current.wind_kph + " km/h";
+        document.getElementById('uv').innerText = data.current.uv;
+
+        // --- C. 顯示卡片 ---
+        document.getElementById('weatherCard').style.display = 'block';
+
+    } catch (error) {
+        console.error("獲取天氣失敗:", error);
+        alert("網路錯誤或 API Key 失效");
+    }
+}
+
+// 3. 快速搜尋功能
+function quickSearch(query) {
+    document.getElementById('cityInput').value = query;
+    getWeather(); // 執行上面那個合併後的函數
+}
+
+// 4. 頁面載入自動查詢邏輯
+window.addEventListener('load', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const city = urlParams.get('city');
+
+    if (city) {
+        document.getElementById('cityInput').value = decodeURIComponent(city);
+        getWeather(); 
+    }
+});
+</script>
+
+</body>
+</html>
