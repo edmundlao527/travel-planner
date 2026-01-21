@@ -26,7 +26,7 @@ body {
 .bg-layer {
   position: fixed;
   inset: 0;
-  background-image: url("images/schedulebg.jpeg");
+  background-image: url("images/indexbg.png");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: 100% auto;
@@ -173,51 +173,45 @@ function go(page) {
 
 // --- 天氣自動抓取功能 ---
 const WEATHER_API_KEY = 'fd430aaac39a4dd7b8c62413262101'; 
-const DESTINATION_CITY = 'Tokyo'; // 你的旅遊目的地
+const DESTINATION_CITY = 'Tokyo'; // 修正變數名稱一致性
 
 async function fetchMiniWeather() {
-  const card = document.getElementById('weather-card');
-  const condEl = document.getElementById('idx-cond');
-
-  // 1. 嘗試取得地理定位
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      // 成功取得位置
       (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
-        getWeatherData(`${lat},${lon}`); // 傳送經緯度給 API
+        getWeatherData(`${lat},${lon}`);
       },
-      // 使用者拒絕或定位失敗，使用預設城市
       (error) => {
-        console.warn("定位失敗或被拒絕，使用預設城市");
-        getWeatherData(DEFAULT_CITY);
+        console.warn("定位失敗，使用預設城市");
+        getWeatherData(DESTINATION_CITY);
       }
     );
   } else {
-    // 瀏覽器不支援定位
-    getWeatherData(DEFAULT_CITY);
+    getWeatherData(DESTINATION_CITY);
   }
 }
 
-// 封裝成一個專門抓取資料並更新 UI 的函數
 async function getWeatherData(query) {
   try {
     const response = await fetch(`https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${query}&aqi=no`);
     const data = await response.json();
 
     if (data.current) {
-      // 更新文字資訊 (會自動顯示當前城市名稱，如 "Hong Kong" 或 "Taipei")
-      document.getElementById('idx-city').innerText = data.location.name;
+      const card = document.getElementById('weather-card'); // 統一在這裡宣告一次
+      const cityName = data.location.name;
+
+      // 更新 UI 文字
+      document.getElementById('idx-city').innerText = cityName;
       document.getElementById('idx-temp').innerText = Math.round(data.current.temp_c);
       document.getElementById('idx-cond').innerText = data.current.condition.text;
       
-      const card = document.getElementById('weather-card');
+      // 修正點擊跳轉連結
       card.onclick = () => go(`weather.html?city=${encodeURIComponent(cityName)}`);
-	  
-	  // 背景顏色邏輯 (沿用之前的設計)
+      
+      // 背景顏色邏輯
       const code = data.current.condition.code;
-      const card = document.getElementById('weather-card');
       let bgColor = "#e0f2fe"; 
       
       if (code === 1000) bgColor = "#ffeb3b"; // 晴天
@@ -226,14 +220,15 @@ async function getWeatherData(query) {
       else if (code >= 1273) bgColor = "#a855f7"; // 雷雨
       
       card.style.backgroundColor = bgColor;
+      card.style.color = (bgColor === "#60a5fa" || bgColor === "#a855f7") ? "#fff" : "#000"; // 自動調色確保文字清晰
     }
   } catch (e) {
+    console.error(e);
     document.getElementById('idx-cond').innerText = '暫時無法取得';
   }
 }
 
 window.addEventListener('load', fetchMiniWeather);
-
 </script>
 
 </body>
